@@ -1,0 +1,19 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "itsm-360-teams-app-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/itsm360TeamsApp/Itsm360TeamsAppWebPart.js",
+          "manifest": "./src/webparts/itsm360TeamsApp/Itsm360TeamsAppWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "Itsm360TeamsAppWebPartStrings": "lib/webparts/itsm360TeamsApp/loc/{locale}.js",
+    "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js"
+  }
+}
