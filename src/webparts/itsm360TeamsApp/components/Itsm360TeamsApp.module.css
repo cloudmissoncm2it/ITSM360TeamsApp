@@ -1,0 +1,55 @@
+@import '~antd/dist/antd.css';
+
+.gutter-example .ant-row > div {
+    background: transparent;
+    border: 0;
+  }
+  .gutter-box {
+    /* background: #00a0e9; */
+    padding: 5px 0;
+  }
+
+  .gutter-box>button{
+    margin-right: 0.1 em;
+    /*padding: 0;*/
+  }
+
+   .logo {
+    width: 120px;
+    height: 50px;
+    /* background: rgba(255, 255, 255, 0.2); */
+    /*background-image: url(../images/__sitelogo__400dpiLogo.jpg);*/
+    background-size: contain;
+    margin: 16px 24px 16px 0;
+    float: left;
+    background-repeat: no-repeat;
+  }
+
+  .ant-layout-header{
+    background:#f0f2f5;
+  }
+
+  /* .card-container > .ant-tabs-card > .ant-tabs-content {
+    height: 120px;
+    margin-top: -16px;
+  }
+  
+  .card-container > .ant-tabs-card > .ant-tabs-content > .ant-tabs-tabpane {
+    background: #fff;
+    padding: 16px;
+  }
+  
+  .card-container > .ant-tabs-card > .ant-tabs-bar {
+    border-color: #fff;
+  }
+  
+  .card-container > .ant-tabs-card > .ant-tabs-bar .ant-tabs-tab {
+    border-color: transparent;
+    background: transparent;
+  }
+  
+  .card-container > .ant-tabs-card > .ant-tabs-bar .ant-tabs-tab-active {
+    border-color: #fff;
+    background: #fff;
+  } */
+
