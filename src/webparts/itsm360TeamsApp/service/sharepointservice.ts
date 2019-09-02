@@ -26,7 +26,7 @@ export class sharepointservice{
     private _stats:Istatus[]=[];
     private _sconts:IContype[]=[];
     private _steams:ITeam[]=[];
-    private _lusers:IUserDetails[]=[];
+    public _lusers:IUserDetails[]=[];
     public _currentuser:SPUser;
 
     constructor(spclient:SPHttpClient,user:SPUser){
@@ -317,6 +317,7 @@ export class sharepointservice{
                     asp=ausers.length>0?ausers[0].Title:"";
                 }
                 let ticket:ITicketItem={
+                    key:item.ID,
                     ID:item.ID,
                     Title:item.Title,
                     Priority:lpri.length>0?lpri[0].Title:"",
@@ -338,7 +339,7 @@ export class sharepointservice{
     }
 
     private getUsers():Promise<void>{
-        const querygetAllUsers = `${this._weburl}_api/web/SiteUserInfoList/items?&$select=Id,Title,Name,EMail`;
+        const querygetAllUsers = `${this._weburl}_api/web/SiteUserInfoList/items?&$select=Id,Title,Name,EMail,Picture`;
         return this._spclient.get(querygetAllUsers, SPHttpClient.configurations.v1).then(
             (response: any) => {
                 if (response.status >= 200 && response.status < 300) {
@@ -348,11 +349,13 @@ export class sharepointservice{
             })
             .then((data: any) => {
                 data.value.forEach((user)=>{
+                    //console.log(user.Picture?user.Picture.Url:"");
                     let luser:IUserDetails={
                         ID:user.Id,
                         Title:user.Title,
                         Name:user.Name,
-                        Email:user.EMail
+                        Email:user.EMail,
+                        pictureurl:user.Picture?user.Picture.Url:""
                     };
                     this._lusers.push(luser);
                 });
@@ -521,5 +524,73 @@ export class sharepointservice{
                 });
             });
         });
+    }
+
+    public addITSMTicket(itsmticket:any):Promise<any>{
+        const addcaseurl:string=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items`;
+        const httpclientoptions:ISPHttpClientOptions={
+            body:JSON.stringify(itsmticket)
+        };
+
+        return this._spclient.post(addcaseurl, SPHttpClient.configurations.v1, httpclientoptions)
+            .then((response: SPHttpClientResponse) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.status;
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            });
+    }
+
+    public uploadTicketAttachment(file:any,ticketid:String):Promise<any>{
+        const uploadurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})/AttachmentFiles/add(FileName='${file.name}')`;
+        let spOpts:ISPHttpClientOptions={
+            headers:{
+                "Accept":"application/json",
+                "Content-Type":"application/json"
+            },
+            body:file
+        };
+
+        return this._spclient.post(uploadurl,SPHttpClient.configurations.v1,spOpts).then((response:SPHttpClientResponse)=>{
+            response.json().then((responseJSON:JSON)=>{
+                return responseJSON;
+            });
+        });
+    }
+
+    public updateTicketStatus(ticketid:string,statusid:string):Promise<any>{
+        const updateurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})`;
+        const getetagurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?$select=Id`;
+        let etag: string = undefined;
+        return this._spclient.get(getetagurl,SPHttpClient.configurations.v1,{
+            headers: {
+              'Accept': 'application/json;odata=nometadata',
+              'odata-version': ''
+            }
+          }).then((response:SPHttpClientResponse)=>{
+            etag=response.headers.get("ETag");
+            return response.json().then((rdata)=>{
+                const body:string=JSON.stringify({
+                    'TicketsStatusId': statusid
+                  });
+                 const data:ISPHttpClientBatchOptions={
+                    headers:{
+                        "Accept":"application/json",
+                        "Content-Type":"application/json",
+                        "odata-version": "",
+                        "IF-MATCH": etag,
+                        "X-HTTP-Method": "MERGE"
+                    },
+                    body:body
+                 };
+                 return this._spclient.post(updateurl,SPHttpClient.configurations.v1,data).then((postresponse:SPHttpClientResponse)=>{
+                    return postresponse;
+                 });
+            });
+            
+          }).catch((ex) => {
+                console.log("Error while updating status: ", ex);
+                throw ex;
+            });
     }
 }

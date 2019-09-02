@@ -1,6 +1,6 @@
 import * as React from 'react';
 import './Itsm360TeamsApp.module.css';
-import { Row, Col, Layout, Table, Button, Input, Icon,Statistic,Card } from 'antd';
+import { Row, Col, Layout, Table, Button, Input, Icon,Statistic,Card,Avatar } from 'antd';
 import { ITicketItem } from '../model/ITicketItem';
 import { SPHttpClient } from '@microsoft/sp-http';
 import { sharepointservice } from '../service/sharepointservice';
@@ -34,6 +34,7 @@ export interface IItsm360TeamsAppState{
   opentickets?:string;
   alltickets?:string;
   selectedRowKeys:any[];
+  selectedTicket?:ITicketItem;
 }
 
 export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IItsm360TeamsAppState> {
@@ -90,6 +91,16 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
     
   }
 
+  public refreshticketsdata=()=>{
+    this.setState({loading:true});
+    this._spservice.getITSMTickets().then((items)=>{
+        this.setState({
+          loading:false,
+          tickets:items
+        });
+    });
+  }
+
   public getColumnSearchProps = dataIndex => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
       <div style={{ padding: 8 }}>
@@ -124,7 +135,11 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
 
   public onSelectChange = selectedRowKeys => {
     console.log('selectedRowKeys changed: ', selectedRowKeys);
-    this.setState({ selectedRowKeys });
+    const selectedTicket:ITicketItem=selectedRowKeys.length == 1?(this.state.tickets.filter(i=>i.ID==selectedRowKeys[0]))[0]:null;
+    this.setState({ 
+        selectedRowKeys,
+        selectedTicket
+     });
   }
 
   public handleSearch = (selectedKeys, confirm) => {
@@ -141,13 +156,15 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
   public handleTableChange = (pagination, filters, sorter) => {
     const pager = { ...this.state.pagination };
     pager.current = pagination.current;
-    this._spservice.getSearchResults(filters).then((items)=>{
-      pagination.total=items.length;
-      this.setState({
-        tickets:items,
-        loading:false
+    if(typeof filters.Priority!="undefined" ||typeof filters.Status!="undefined"||typeof filters.ContentType!="undefined"||typeof filters.Title!="undefined"){
+      this._spservice.getSearchResults(filters).then((items)=>{
+        pagination.total=items.length;
+        this.setState({
+          tickets:items,
+          loading:false
+        });
       });
-    });
+    }
   }
   
   public render(): React.ReactElement<IItsm360TeamsAppProps> {
@@ -184,7 +201,8 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
       },
       {
         title:'Requester',
-        dataIndex:'Requester'
+        dataIndex:'Requester',
+        //render:title=><div><Avatar src="https://cloudmission-my.sharepoint.com/User%20Photos/Profilbilleder/kbj_cloudmission_net_MThumb.jpg?t=63671314043" />{title}</div>,
       },
       {
         title:'Status',
@@ -263,7 +281,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
             
             <Row gutter={16}>
                 <Col className="gutter-row" span={24}>
-                  <Itsm360buttons hasSelected={hasSelected} sharepointservice={this._spservice} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} />
+                  <Itsm360buttons hasSelected={hasSelected} sharepointservice={this._spservice} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} selectedTicket={this.state.selectedTicket} refreshticketsdata={this.refreshticketsdata} />
                 </Col>
               </Row>
               <Row gutter={16}>

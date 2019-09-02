@@ -3,4 +3,5 @@ export interface IUserDetails{
     Title?:string;
     Name?:string;
     Email?:string;
+    pictureurl?:string;
 }

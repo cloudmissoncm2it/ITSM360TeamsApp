@@ -5,6 +5,10 @@ import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/People
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { ITeam } from '../model/ITeam';
 import { Istatus } from '../model/Istatus';
+import { IUserDetails } from '../model/IUserDetails';
+import {Itsm360Attachment} from './Itsm360Attachment';
+import { ITicketItem } from '../model/ITicketItem';
+import {Itsm360StatusUpdate}from './Itsm360StatusUpdate';
 
 const { Option } = Select;
 const {TextArea}=Input;
@@ -16,6 +20,8 @@ export interface IItsm360Props {
   ppcontext:WebPartContext;
   teams:ITeam[];
   status:Istatus[];
+  selectedTicket:ITicketItem;
+  refreshticketsdata?:any;
 }
 
 export interface IItsm360State {
@@ -36,6 +42,7 @@ export interface IItsm360State {
   statusid?:string;
   assignedperson?:any[];
   internalnote?:string;
+  isAttachmentVisible?:boolean;
 }
 
 export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State>{
@@ -48,7 +55,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
       requestor:[this.props.sharepointservice._currentuser.email],
       urgency:"Low",
       impact:"Low",
-      statusid:"New"
+      isAttachmentVisible:false
     };
   }
 
@@ -59,43 +66,62 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
   }
 
   public handleOk = (e) => {
-    const {title,requestor,origin,servicegroup,service,subcategory,impact,urgency,description}=this.state;
+    this.setState({ modalsave: true });
+    const {title,requestor,origin,servicegroup,service,subcategory,impact,urgency,description,teamid,assignedperson,internalnote,statusid}=this.state;
+    let requestorid:IUserDetails[]=[];
+    if(requestor.length>0){
+      requestorid=this.props.sharepointservice._lusers.filter(i=>i.Email==requestor[0].secondaryText);
+    }
+    let assignedpersonid:IUserDetails[]=[];
+    if(assignedperson.length>0){
+      assignedpersonid=this.props.sharepointservice._lusers.filter(i=>i.Email==assignedperson[0].secondaryText);
+    }
     const newticket={
       Title:title,
-      Requestor:requestor,
+      RequesterId:requestorid.length>0?requestorid[0].ID:"",
       Origin:origin,
-      Servicegroup:servicegroup,
-      Service:service,
-      ServiceCategory:subcategory,
+      ServiceGroupsId:servicegroup,
+      RelatedServicesId:service,
+      RelatedCategoriesId:subcategory,
       Impact:impact,
       Urgency:urgency,
-      Description:description
+      Description:description,
+      AssignedTeamId:teamid,
+      AssignedPersonId:assignedpersonid.length>0?assignedpersonid[0].ID:"",
+      Notes:internalnote,
+      TicketsStatusId:statusid
     };
 
     console.log(newticket);
 
-    this.setState({
-      modalvisible: false,
-      title:"",
-      requestor:[this.props.sharepointservice._currentuser.email],
-      origin:"",
-      impact:"Low",
-      urgency:"Low",
-      description:"",
-      cascaderdefaultvalue:["0","0","0"]
+    this.props.sharepointservice.addITSMTicket(newticket).then((result)=>{
+      console.log("post success: ", result);
+      this.props.refreshticketsdata();
+      this.setState({
+        modalvisible: false,
+        modalsave:false
+      });
+      // this.setState({
+      //   modalvisible: false,
+      //   modalsave:false,
+      //   title:"",
+      //   requestor:[this.props.sharepointservice._currentuser.email],
+      //   origin:"",
+      //   impact:"Low",
+      //   urgency:"Low",
+      //   description:"",
+      //   cascaderdefaultvalue:["0","0","0"]
+      // });
+    }).catch((error: any) => {
+      console.log("Error: ", error);
     });
+
+    
   }
 
   public handleCancel = (e) => {
     this.setState({
-      modalvisible: false,
-      title:"",
-      requestor:[this.props.sharepointservice._currentuser.email],
-      origin:"",
-      impact:"Low",
-      urgency:"Low",
-      description:"",
-      cascaderdefaultvalue:["0","0","0"]
+      modalvisible: false
     });
   }
 
@@ -157,6 +183,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
   }
 
   public statusChange = (value) => {
+    debugger;
     this.setState({statusid:value});
   }
   
@@ -201,28 +228,20 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
     return (
       <div>
         <div className="gutter-box">
-          <Button disabled={!this.props.hasSelected}>
-            <Icon type="reload" />
-            Update Status
-                      </Button>
-          <Button disabled={!this.props.hasSelected}>
-            <Icon type="usergroup-add" />
-            Assign/Re-assign
-                      </Button>
+          <Itsm360StatusUpdate visible={this.props.hasSelected} sharepointservice={this.props.sharepointservice} selectedTicket={this.props.selectedTicket} status={this.props.status} />
           <Button disabled={!this.props.hasSelected}>
             <Icon type="user-add" />
             Assign to me
                     </Button>
-          <Button disabled={!this.props.hasSelected}>Send Group Conversation</Button>
-          <Button disabled={!this.props.hasSelected}>
+          <Itsm360Attachment visible={this.props.hasSelected} sharepointservice={this.props.sharepointservice} selectedTicket={this.props.selectedTicket} />
+          <Button disabled={!this.props.hasSelected} >
             <Icon type="check-square" />
             Resolve
-                    </Button>
+          </Button>
           <Button onClick={this.showModal}>
             <Icon type="plus-square" />
             New Ticket
-                       </Button>
-          {/*<Button>Escalate/Raise</Button> */}
+          </Button>
         </div>
         <Modal title="New Ticket"
           visible={this.state.modalvisible}
@@ -230,6 +249,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
           onCancel={this.handleCancel}
           okText="Submit"
           confirmLoading={this.state.modalsave}
+          destroyOnClose={true}
         >
           <div className="card-container">
             <Tabs type="card">
@@ -242,7 +262,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
                     <div className="ant-col ant-form-item-control-wrapper">
                       <div className="ant-form-item-control">
                         <span className="ant-form-item-children">
-                          <input type="text" className="ant-input" placeholder="Ticket Title" onChange={this.titleChange} value={this.state.title} />
+                          <Input type="text" className="ant-input" placeholder="Ticket Title" onChange={this.titleChange} value={this.state.title} />
                         </span>
                       </div>
                     </div>
@@ -391,7 +411,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
                     <div className="ant-col ant-form-item-control-wrapper">
                       <div className="ant-form-item-control">
                         <span className="ant-form-item-children">
-                          <Select value={this.state.statusid} style={{ width: "40%" }} onChange={this.statusChange}>
+                          <Select placeholder="select a status" style={{ width: "40%" }} onChange={this.statusChange}>
                             {this.props.status.map((stat: Istatus, index) => <Option value={stat.ID} key={index}>{stat.Title}</Option>)}
                           </Select>
                         </span>
@@ -416,6 +436,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
           </div>
           
         </Modal>
+        
       </div>
     );
   }
