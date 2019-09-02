@@ -11,4 +11,5 @@ export interface ITicketItem{
     AssignedTeam?:string;
     Created?:string;
     RemainingTime?:string;
+    AssignedPerson?:string;
 }

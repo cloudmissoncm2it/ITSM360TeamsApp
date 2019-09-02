@@ -105,6 +105,7 @@ export class sharepointservice{
                 Status:item.TicketsStatus.Title,
                 ContentType:item.ContentType.Name,
                 AssignedTeamPerson:asp,
+                AssignedPerson:typeof item.AssignedPerson!="undefined"?item.AssignedPerson.Title:"",
                 Created:moment(item.Created).format("MMM Do YY"),
                 RemainingTime:""
             };
@@ -326,6 +327,7 @@ export class sharepointservice{
                     Status:lstat.length>0?lstat[0].Title:"",
                     ContentType:lct.length>0?lct[0].Name:"",
                     AssignedTeamPerson:asp,
+                    AssignedPerson:ausers.length>0?ausers[0].Title:"",
                     Created:moment(item.Created).format("MMM Do YY"),
                     RemainingTime:""
                 };
@@ -572,6 +574,42 @@ export class sharepointservice{
             return response.json().then((rdata)=>{
                 const body:string=JSON.stringify({
                     'TicketsStatusId': statusid
+                  });
+                 const data:ISPHttpClientBatchOptions={
+                    headers:{
+                        "Accept":"application/json",
+                        "Content-Type":"application/json",
+                        "odata-version": "",
+                        "IF-MATCH": etag,
+                        "X-HTTP-Method": "MERGE"
+                    },
+                    body:body
+                 };
+                 return this._spclient.post(updateurl,SPHttpClient.configurations.v1,data).then((postresponse:SPHttpClientResponse)=>{
+                    return postresponse;
+                 });
+            });
+            
+          }).catch((ex) => {
+                console.log("Error while updating status: ", ex);
+                throw ex;
+            });
+    }
+
+    public updateTicketAssign(ticketid:string,assignid:string):Promise<any>{
+        const updateurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})`;
+        const getetagurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?$select=Id`;
+        let etag: string = undefined;
+        return this._spclient.get(getetagurl,SPHttpClient.configurations.v1,{
+            headers: {
+              'Accept': 'application/json;odata=nometadata',
+              'odata-version': ''
+            }
+          }).then((response:SPHttpClientResponse)=>{
+            etag=response.headers.get("ETag");
+            return response.json().then((rdata)=>{
+                const body:string=JSON.stringify({
+                    'AssignedPersonId': assignid
                   });
                  const data:ISPHttpClientBatchOptions={
                     headers:{

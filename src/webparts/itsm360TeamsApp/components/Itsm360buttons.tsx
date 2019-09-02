@@ -9,6 +9,7 @@ import { IUserDetails } from '../model/IUserDetails';
 import {Itsm360Attachment} from './Itsm360Attachment';
 import { ITicketItem } from '../model/ITicketItem';
 import {Itsm360StatusUpdate}from './Itsm360StatusUpdate';
+import {Itsm360Assign} from './Itsm360Assign';
 
 const { Option } = Select;
 const {TextArea}=Input;
@@ -69,16 +70,16 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
     this.setState({ modalsave: true });
     const {title,requestor,origin,servicegroup,service,subcategory,impact,urgency,description,teamid,assignedperson,internalnote,statusid}=this.state;
     let requestorid:IUserDetails[]=[];
-    if(requestor.length>0){
+    if(typeof requestor !="undefined" && requestor.length>0){
       requestorid=this.props.sharepointservice._lusers.filter(i=>i.Email==requestor[0].secondaryText);
     }
     let assignedpersonid:IUserDetails[]=[];
-    if(assignedperson.length>0){
+    if(typeof assignedperson !="undefined" && assignedperson.length>0){
       assignedpersonid=this.props.sharepointservice._lusers.filter(i=>i.Email==assignedperson[0].secondaryText);
     }
     const newticket={
       Title:title,
-      RequesterId:requestorid.length>0?requestorid[0].ID:"",
+      RequesterId:requestorid.length>0?requestorid[0].ID:null,
       Origin:origin,
       ServiceGroupsId:servicegroup,
       RelatedServicesId:service,
@@ -87,7 +88,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
       Urgency:urgency,
       Description:description,
       AssignedTeamId:teamid,
-      AssignedPersonId:assignedpersonid.length>0?assignedpersonid[0].ID:"",
+      AssignedPersonId:assignedpersonid.length>0?assignedpersonid[0].ID:null,
       Notes:internalnote,
       TicketsStatusId:statusid
     };
@@ -96,7 +97,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
 
     this.props.sharepointservice.addITSMTicket(newticket).then((result)=>{
       console.log("post success: ", result);
-      this.props.refreshticketsdata();
+      //this.props.refreshticketsdata();
       this.setState({
         modalvisible: false,
         modalsave:false
@@ -229,10 +230,7 @@ export class Itsm360buttons extends React.Component<IItsm360Props, IItsm360State
       <div>
         <div className="gutter-box">
           <Itsm360StatusUpdate visible={this.props.hasSelected} sharepointservice={this.props.sharepointservice} selectedTicket={this.props.selectedTicket} status={this.props.status} />
-          <Button disabled={!this.props.hasSelected}>
-            <Icon type="user-add" />
-            Assign to me
-                    </Button>
+          <Itsm360Assign visible={this.props.hasSelected} sharepointservice={this.props.sharepointservice} selectedTicket={this.props.selectedTicket} ppcontext={this.props.ppcontext} />
           <Itsm360Attachment visible={this.props.hasSelected} sharepointservice={this.props.sharepointservice} selectedTicket={this.props.selectedTicket} />
           <Button disabled={!this.props.hasSelected} >
             <Icon type="check-square" />
