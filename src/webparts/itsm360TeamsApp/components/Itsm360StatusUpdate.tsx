@@ -15,6 +15,7 @@ export interface IItsm360StatusUpdateState{
     ismodalvisible:boolean;
     modalsave?:boolean;
     statusid?:string;
+    errorMessage?:boolean;
 }
 
 export class Itsm360StatusUpdate extends React.Component<IItsm360StatusUpdateProps,IItsm360StatusUpdateState>{
@@ -28,14 +29,22 @@ export class Itsm360StatusUpdate extends React.Component<IItsm360StatusUpdatePro
     }
 
     public handleOk=(e)=>{
+        const {statusid}=this.state;
         this.setState({modalsave:true});
-        this.props.sharepointservice.updateTicketStatus(this.props.selectedTicket.ID,this.state.statusid).then((resp)=>{
-            console.log("update status: ",resp);
+        if(typeof statusid !="undefined"){
+            this.props.sharepointservice.updateTicketStatus(this.props.selectedTicket.ID,this.state.statusid).then((resp)=>{
+                console.log("update status: ",resp);
+                this.setState({
+                    modalsave:false,
+                    ismodalvisible:false
+                });
+            });
+        }else{
             this.setState({
                 modalsave:false,
-                ismodalvisible:false
+                errorMessage:true
             });
-        });
+        }
     }
 
     public handleCancel=(e)=>{
@@ -66,9 +75,13 @@ export class Itsm360StatusUpdate extends React.Component<IItsm360StatusUpdatePro
                    confirmLoading={this.state.modalsave} 
                 >
                     <div>
-                        <Alert type="info" 
+                    {this.state.errorMessage?<Alert type="error" style={{marginBottom:"10px"}} closable message="No change in the status"/>:""} 
+                        <Alert type="info" style={{marginBottom:"10px"}} 
                             message={`Title: ${ticketdesc}`}
                             description={`Ticket Id: ${ticketid}`}
+                        />
+                        <Alert type="info" showIcon style={{marginBottom:"10px"}}
+                            message={`Present Value: ${selectedstatus}`}
                         />
                         <div className="ant-form ant-form-horizontal">
                         <div className="ant-row ant-form-item" >
@@ -78,7 +91,7 @@ export class Itsm360StatusUpdate extends React.Component<IItsm360StatusUpdatePro
                     <div className="ant-col ant-form-item-control-wrapper ant-col-xs-24 ant-col-sm-16">
                       <div className="ant-form-item-control">
                         <span className="ant-form-item-children">
-                        <select onChange={this.statusChange} defaultValue={selectedstatus}>
+                        <select onChange={this.statusChange}>
                         {stats.map((stat:Istatus,index)=>{
                           if(stat.Title==selectedstatus){
                             return <option value={stat.ID} key={index} selected>{stat.Title}</option>;

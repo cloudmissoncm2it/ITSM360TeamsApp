@@ -47,7 +47,7 @@ export class Itsm360Assign extends React.Component<IItsm360AssignProps,IItsm360A
         }else{
             this.setState({
                 errorMessage:true,
-                modalsave:true
+                modalsave:false
             });
         }
         

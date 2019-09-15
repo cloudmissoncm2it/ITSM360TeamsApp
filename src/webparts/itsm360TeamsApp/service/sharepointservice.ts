@@ -1,4 +1,4 @@
-import { SPHttpClient,  SPHttpClientConfiguration, SPHttpClientResponse, ODataVersion, ISPHttpClientConfiguration, ISPHttpClientOptions, ISPHttpClientBatchOptions, SPHttpClientBatch, ISPHttpClientBatchCreationOptions } from "@microsoft/sp-http";
+import { SPHttpClient, SPHttpClientResponse, ISPHttpClientOptions, ISPHttpClientBatchOptions, SPHttpClientBatch, ISPHttpClientBatchCreationOptions } from "@microsoft/sp-http";
 import { ITicketItem } from "../model/ITicketItem";
 import * as moment from 'moment';
 import { ISLAPriority } from "../model/ISLAPriority";
@@ -10,7 +10,6 @@ import { SPUser } from "@microsoft/sp-page-context";
 import { IServiceGroup } from "../model/IServiceGroup";
 import { IService } from "../model/IService";
 import { IServiceCategory } from "../model/IServiceCategory";
-import { Children } from "react";
 
 export class sharepointservice{
     private _spclient:SPHttpClient;
@@ -22,6 +21,7 @@ export class sharepointservice{
     private _servicegroupid="c3619f14-b00c-46d0-a3fa-9d373a9bd60e";
     private _servicesid="ea98ea2b-5179-4c18-982b-d1142ca3550f";
     private _subcategory="5cd9db0b-3549-41d9-adb9-a1f28c94a6a2";
+    private _conversationid="3471b6ec-1c99-4930-97ed-20da4b63ab19";
     private _spris:ISLAPriority[]=[];
     private _stats:Istatus[]=[];
     private _sconts:IContype[]=[];
@@ -34,14 +34,21 @@ export class sharepointservice{
         this._currentuser=user;
         console.log(this._currentuser.email);
         console.log(this._currentuser.loginName);
-        this.getUsers();
+        this.getUsers(null);
     }
 
-    public getITSMTickets():Promise<any>{
+    public getITSMTickets(nexturl?:string,prevtickets?:ITicketItem[]):Promise<any>{
         const selectquery:string="$select=ID,Title,SLAPriority/Title,Requester/Title,TicketsStatus/Title,ContentType/name,AssignedPerson/Title,AssignedTeam/Title,Created,TimeToFixModern";
         const expandquery:string="$expand=Requester,SLAPriority,TicketsStatus,ContentType,AssignedPerson,AssignedTeam";
-        const querygetAllItems = `${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$orderby=Id desc`;
-        return this._spclient.get(querygetAllItems, SPHttpClient.configurations.v1).then(
+        const querygetAllItems = nexturl?nexturl:`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$orderby=Id desc`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=verbose"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(querygetAllItems, SPHttpClient.configurations.v1,options).then(
             (response: any) => {
                 if (response.status >= 200 && response.status < 300) {
                     return response.json();
@@ -49,7 +56,10 @@ export class sharepointservice{
                 else { return Promise.reject(new Error(JSON.stringify(response))); }
             })
             .then((data: any) => {
-               return this.processtickets(data.value);
+                console.log("next url:",data.d.__next);
+               return {"tickets":this.processtickets(data.d.results,prevtickets),
+               "nexturl":data.d.__next
+               };
             }).catch((ex) => {
                 debugger;
                 console.log("Error while fetching ITSM tickets: ", ex);
@@ -58,8 +68,8 @@ export class sharepointservice{
     }
 
     //Method for converting the SP data to model data
-    private processtickets(items:any[]):any[]{
-        let tickets:ITicketItem[]=[];
+    private processtickets(items:any[],prevItems:ITicketItem[]):any[]{
+        let tickets:ITicketItem[]=prevItems;
         items.forEach((item)=>{
             let asp:string="";
             let pcolor:string="";
@@ -68,7 +78,9 @@ export class sharepointservice{
             }else{
                 asp=typeof item.AssignedPerson=="undefined"?`${item.AssignedTeam.Title}`:`${item.AssignedTeam.Title}:${item.AssignedPerson.Title}`;
             }
-            switch(item.SLAPriority.Title){
+
+            const SPT=typeof item.SLAPriority !="undefined"?item.SLAPriority.Title:"-1";
+            switch(SPT){
                 case "1":{
                     pcolor="#B21E29";
                     break;
@@ -99,7 +111,7 @@ export class sharepointservice{
                 key:item.ID,
                 ID:item.ID,
                 Title:item.Title,
-                Priority:item.SLAPriority.Title,
+                Priority:SPT,
                 Prioritycolor:pcolor,
                 Requester:item.Requester.Title,
                 Status:item.TicketsStatus.Title,
@@ -245,7 +257,10 @@ export class sharepointservice{
 
         const itemurl:string=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/GetItems`;
         const options: ISPHttpClientOptions = {
-            headers: {'odata-version':'3.0'},
+            headers: {
+                'odata-version':'3.0',
+                'accept':'application/json;odata=nometadata'
+                    },
             body: `{'query': {
                 '__metadata': {'type': 'SP.CamlQuery'},
                 'ViewXml': '<View><Query>
@@ -340,9 +355,16 @@ export class sharepointservice{
         });
     }
 
-    private getUsers():Promise<void>{
-        const querygetAllUsers = `${this._weburl}_api/web/SiteUserInfoList/items?&$select=Id,Title,Name,EMail,Picture`;
-        return this._spclient.get(querygetAllUsers, SPHttpClient.configurations.v1).then(
+    private getUsers(url:string):Promise<void>{
+        const querygetAllUsers = url?url:`${this._weburl}_api/web/SiteUserInfoList/items?&$select=Id,Title,Name,EMail,Picture`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=verbose"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(querygetAllUsers, SPHttpClient.configurations.v1,options).then(
             (response: any) => {
                 if (response.status >= 200 && response.status < 300) {
                     return response.json();
@@ -350,7 +372,7 @@ export class sharepointservice{
                 else { return Promise.reject(new Error(JSON.stringify(response))); }
             })
             .then((data: any) => {
-                data.value.forEach((user)=>{
+                data.d.results.forEach((user)=>{
                     //console.log(user.Picture?user.Picture.Url:"");
                     let luser:IUserDetails={
                         ID:user.Id,
@@ -361,6 +383,10 @@ export class sharepointservice{
                     };
                     this._lusers.push(luser);
                 });
+                if(data.d.__next){
+                    debugger;
+                    this.getUsers(data.d.__next);
+                }
             }).catch((ex) => {
                 debugger;
                 console.log("Error while fetching User Details: ", ex);
@@ -372,7 +398,14 @@ export class sharepointservice{
         const Currentuser:IUserDetails[]=this._lusers.filter(i=>i.Email==this._currentuser.email);
         const currentuserid:string=Currentuser.length>0?Currentuser[0].ID:"-1";
         const myticketsurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?$select=ID&$filter=AssignedPersonStringId eq ${currentuserid} and TicketsStatusId ne 7`;
-        return this._spclient.get(myticketsurl, SPHttpClient.configurations.v1).then(
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(myticketsurl, SPHttpClient.configurations.v1,options).then(
             (response: any) => {
                 if (response.status >= 200 && response.status < 300) {
                     return response.json();
@@ -390,7 +423,14 @@ export class sharepointservice{
 
     public getUnassignedTicketsCount():Promise<any>{
         const unassignedticketsurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?$select=ID&$filter= AssignedPersonStringId eq null and AssignedTeamId eq null and TicketsStatusId ne 7`;
-        return this._spclient.get(unassignedticketsurl, SPHttpClient.configurations.v1).then(
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(unassignedticketsurl, SPHttpClient.configurations.v1,options).then(
             (response: any) => {
                 if (response.status >= 200 && response.status < 300) {
                     return response.json();
@@ -409,7 +449,14 @@ export class sharepointservice{
     //https://codewithrohit.wordpress.com/2017/06/01/sharepoint-rest-api/
     public getopenTicketsCount():Promise<any>{
         const openticketsurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?$select=ID,TicketsStatusId&$filter=TicketsStatusId ne 7 and TicketsStatusId ne 12 and TicketsStatusId ne 14&$top=5000`;
-        return this._spclient.get(openticketsurl, SPHttpClient.configurations.v1).then(
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(openticketsurl, SPHttpClient.configurations.v1,options).then(
             (response: any) => {
                 if (response.status >= 200 && response.status < 300) {
                     return response.json();
@@ -629,6 +676,57 @@ export class sharepointservice{
           }).catch((ex) => {
                 console.log("Error while updating status: ", ex);
                 throw ex;
+            });
+    }
+
+    public getTicketNotes(ticketid:string):Promise<any>{
+        const ticketnotesurl=`${this._weburl}_api/web/lists(guid'${this._conversationid}')/items?$filter=TicketIDId eq ${ticketid}&$select=ID,AuthorId,Communications,CommunicationInitiatorId,Created`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(ticketnotesurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let ticketnotes:any[]=[];
+                data.value.forEach(note => {
+                   const users=this._lusers.filter(i=>i.ID==note.CommunicationInitiatorId);
+                   const user=users.length>0?users[0]:null;
+                   const ticketnote:any={
+                       author:user.Title,
+                       avatar:user.pictureurl,
+                       content:note.Communications,
+                       datetime:moment(note.Created).format("MMM Do YY")
+                   };
+                   ticketnotes.push(ticketnote);
+                });
+                return ticketnotes;
+            }).catch((ex) => {
+                console.log("Error while fetching Ticket Notes: ", ex);
+                throw ex;
+            });
+    }
+
+    public addTicketNotes(ticketnote:any):Promise<any>{
+        const addnotesurl:string=`${this._weburl}_api/web/lists(guid'${this._conversationid}')/items`;
+        const httpclientoptions:ISPHttpClientOptions={
+            body:JSON.stringify(ticketnote)
+        };
+
+        return this._spclient.post(addnotesurl, SPHttpClient.configurations.v1, httpclientoptions)
+            .then((response: SPHttpClientResponse) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.status;
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
             });
     }
 }
