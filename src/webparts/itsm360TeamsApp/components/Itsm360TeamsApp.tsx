@@ -15,6 +15,7 @@ import { Itsm360StatusUpdate } from './Itsm360StatusUpdate';
 import { Itsm360Assign } from './Itsm360Assign';
 import { Itsm360Attachment } from './Itsm360Attachment';
 import {Itsm360AddNotes} from './Itsm360AddNotes';
+import {Itsm360EditTicket} from './Itsm360EditTicket';
 
 export interface IItsm360TeamsAppProps {
   description: string;
@@ -39,6 +40,8 @@ export interface IItsm360TeamsAppState {
   alltickets?: string;
   selectedRowKeys: any[];
   selectedTicket?: ITicketItem;
+  isDrawerVisible?:boolean;
+  selectectedTicketId?:string;
 }
 
 export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IItsm360TeamsAppState> {
@@ -68,7 +71,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
   public componentDidMount() {
     this.setState({ loading: true });
     this._spservice.getlookupdata().then((data) => {
-      this._spservice.getITSMTickets(null,[]).then((items) => {
+      this._spservice.getITSMTickets(null,[],null).then((items) => {
         this.setState({
           tickets: items.tickets,
           priorities: data[1],
@@ -104,8 +107,9 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
     this._spservice.getITSMTickets().then((items) => {
       this.setState({
         loading: false,
-        tickets: items
+        tickets: items.tickets
       });
+      this._nexturl=items.nexturl;
     });
   }
 
@@ -177,7 +181,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
 
     if(pager.current==this._lastpage){
       this.setState({loading:true});
-      this._spservice.getITSMTickets(this._nexturl,this.state.tickets).then((titems)=>{
+      this._spservice.getITSMTickets(this._nexturl,this.state.tickets,null).then((titems)=>{
         pagination.total=titems.tickets.length;
         this._lastpage=titems.tickets.length/10;
         this._nexturl=titems.nexturl;
@@ -187,6 +191,29 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
         });
       });
     }
+  }
+
+  public onCardClick=(e)=>{
+    debugger;
+    let viewname=null;
+    if(e.currentTarget.className.indexOf("myview")>-1){
+      viewname="myview";
+    }else if(e.currentTarget.className.indexOf("unassignedview")>-1){
+      viewname="unassignedview";
+    }else if(e.currentTarget.className.indexOf("openview")>-1){
+      viewname="openview";
+    }else if(e.currentTarget.className.indexOf("allview")>-1){
+      viewname="allview";
+    }
+
+    this.setState({ loading: true });
+    this._spservice.getITSMTickets(null,[],viewname).then((items) => {
+      this.setState({
+        loading: false,
+        tickets: items.tickets
+      });
+      this._nexturl=items.nexturl;
+    });
   }
 
   public render(): React.ReactElement<IItsm360TeamsAppProps> {
@@ -217,7 +244,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
       {
         title: 'Title',
         dataIndex: 'Title',
-        render: title => <div><Icon type="info-circle" style={{ margin: '0 8px 0 0' }} />{title}</div>,
+        render: (title,record) => <div><Icon type="info-circle" style={{ margin: '0 8px 0 0' }}  />{title}</div>,
         ...this.getColumnSearchProps('Title'),
         width: '25%'
       },
@@ -245,9 +272,17 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
         dataIndex: 'Created',
         width: '10%'
       },
+      // {
+      //   title: 'Remaining Time',
+      //   dataIndex: 'RemainingTime'
+      // }
       {
-        title: 'Remaining Time',
-        dataIndex: 'RemainingTime'
+        title:'Action',
+        render:(text,record)=>(
+          <span>
+            <Itsm360EditTicket sharepointservice={this._spservice} selectedTicket={record} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} />
+          </span>
+        ),
       }
     ];
 
@@ -259,7 +294,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
               <div style={{ background: '#ECECEC', padding: '30px' }}>
                 <Row gutter={16}>
                   <Col className="gutter-row" span={6}>
-                    <Card>
+                    <Card className="myview" onClick={this.onCardClick} style={{cursor:"pointer"}}>
                       <Statistic
                         title="My Tickets"
                         value={this.state.mytickets}
@@ -269,7 +304,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
                     </Card>
                   </Col>
                   <Col className="gutter-row" span={6}>
-                    <Card>
+                    <Card className="unassignedview" onClick={this.onCardClick} style={{cursor:"pointer"}}>
                       <Statistic
                         title="UnAssigned Tickets"
                         value={this.state.unassignedtickets}
@@ -279,7 +314,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
                     </Card>
                   </Col>
                   <Col className="gutter-row" span={6}>
-                    <Card>
+                    <Card className="openview" onClick={this.onCardClick} style={{cursor:"pointer"}}>
                       <Statistic
                         title="Open Tickets"
                         value={this.state.opentickets}
@@ -289,7 +324,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
                     </Card>
                   </Col>
                   <Col className="gutter-row" span={6}>
-                    <Card>
+                    <Card className="allview" onClick={this.onCardClick} style={{cursor:"pointer"}}>
                       <Statistic
                         title="All Tickets"
                         value={this.state.alltickets}

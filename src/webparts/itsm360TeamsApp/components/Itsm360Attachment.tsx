@@ -15,7 +15,7 @@ export interface IItsm360AttachmentState{
 }
 
 export class Itsm360Attachment extends React.Component<IItsm360AttachmentProps,IItsm360AttachmentState>{
-
+    private _file=null;
     constructor(props:IItsm360AttachmentProps){
         super(props);
         this.state = {
@@ -24,10 +24,13 @@ export class Itsm360Attachment extends React.Component<IItsm360AttachmentProps,I
         };
     }
 
-    
-
     public handleOk=(e)=>{
-        this.setState({ismodalvisible:false});
+        debugger;
+        if(this._file){
+        this.props.sharepointservice.uploadTicketAttachment(this._file,this.props.selectedTicket.ID).then(data=>{
+            this.setState({ismodalvisible:false});
+        });
+    }
     }
 
     public handleCancel=(e)=>{
@@ -35,9 +38,9 @@ export class Itsm360Attachment extends React.Component<IItsm360AttachmentProps,I
     }
 
     public uploadfilechange=info=>{
-        this.props.sharepointservice.uploadTicketAttachment(info.file,this.props.selectedTicket.ID).then(data=>{
-            info.onSuccess(null,info.file);
-        });
+        debugger;
+        this._file=info.file;
+        info.onSuccess(null,info.file);
     }
 
 

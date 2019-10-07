@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { Modal, Button, Icon, List, Comment, Tooltip, Form, Input, Alert } from 'antd';
+import { Modal, Button, Icon, List, Comment, Form, Input, Alert } from 'antd';
 import { sharepointservice } from '../service/sharepointservice';
 import { ITicketItem } from '../model/ITicketItem';
 import { IUserDetails } from '../model/IUserDetails';
+import * as moment from 'moment';
 
 export interface IItsm360AddNotesProps {
     visible: boolean;
@@ -102,7 +103,7 @@ export class Itsm360AddNotes extends React.Component<IItsm360AddNotesProps, IIts
                                         author={item.author}
                                         avatar={item.avatar}
                                         content={item.content}
-                                        datetime={item.datetime}
+                                        datetime={moment(item.datetime).fromNow()}
                                     />
                                 </li>
                             )}

@@ -12,4 +12,6 @@ export interface ITicketItem{
     Created?:string;
     RemainingTime?:string;
     AssignedPerson?:string;
+    lastmodifiedby?:string;
+    lastmodified?:string;
 }

@@ -37,10 +37,39 @@ export class sharepointservice{
         this.getUsers(null);
     }
 
-    public getITSMTickets(nexturl?:string,prevtickets?:ITicketItem[]):Promise<any>{
-        const selectquery:string="$select=ID,Title,SLAPriority/Title,Requester/Title,TicketsStatus/Title,ContentType/name,AssignedPerson/Title,AssignedTeam/Title,Created,TimeToFixModern";
-        const expandquery:string="$expand=Requester,SLAPriority,TicketsStatus,ContentType,AssignedPerson,AssignedTeam";
-        const querygetAllItems = nexturl?nexturl:`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$orderby=Id desc`;
+    public getITSMTickets(nexturl?:string,prevtickets?:ITicketItem[],cview?:string):Promise<any>{
+        const selectquery:string="$select=ID,Title,SLAPriority/Title,Requester/Title,TicketsStatus/Title,ContentType/name,AssignedPerson/Title,AssignedPerson/EMail,AssignedTeam/Title,Created,TimeToFixModern,Modified,Editor/Title";
+        const expandquery:string="$expand=Requester,SLAPriority,TicketsStatus,ContentType,AssignedPerson,AssignedTeam,Editor";
+        let querygetAllItems=null;
+        if(cview){
+            switch(cview){
+                case "myview":{
+                    const Currentuser:IUserDetails[]=this._lusers.filter(i=>i.Email==this._currentuser.email);
+                    const currentuserid:string=Currentuser.length>0?Currentuser[0].ID:"-1";
+                    querygetAllItems=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$filter=AssignedPersonStringId eq ${currentuserid} and TicketsStatusId ne 7&$orderby=Id desc`;
+                    break;
+                }
+                case "unassignedview":{
+                    querygetAllItems=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$filter= AssignedPersonStringId eq null and AssignedTeamId eq null and TicketsStatusId ne 7&$orderby=Id desc`;
+                    break;
+                }
+                case "openview":{
+                    querygetAllItems=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$filter=TicketsStatusId ne 7 and TicketsStatusId ne 12 and TicketsStatusId ne 14&$orderby=Id desc`;
+                    break;
+                }
+                case "allview":{
+                    querygetAllItems=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$orderby=Id desc`;
+                    break;
+                }
+                default:{
+                    querygetAllItems=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$orderby=Id desc`;
+                    break;
+                }
+            }
+        }else{
+            querygetAllItems = nexturl?nexturl:`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?${selectquery}&${expandquery}&$orderby=Id desc`;
+        }
+        
         const options:ISPHttpClientOptions={
             headers:{
                 "odata-version":"3.0",
@@ -56,7 +85,6 @@ export class sharepointservice{
                 else { return Promise.reject(new Error(JSON.stringify(response))); }
             })
             .then((data: any) => {
-                console.log("next url:",data.d.__next);
                return {"tickets":this.processtickets(data.d.results,prevtickets),
                "nexturl":data.d.__next
                };
@@ -71,12 +99,15 @@ export class sharepointservice{
     private processtickets(items:any[],prevItems:ITicketItem[]):any[]{
         let tickets:ITicketItem[]=prevItems;
         items.forEach((item)=>{
+            debugger;
             let asp:string="";
             let pcolor:string="";
-            if(typeof item.AssignedTeam=="undefined"){
-                asp=typeof item.AssignedPerson=="undefined"?"":item.AssignedPerson.Title;
+            let at:string="";
+            if(typeof item.AssignedTeam.Title=="undefined"){
+                asp=typeof item.AssignedPerson.Title=="undefined"?"":item.AssignedPerson.Title;
             }else{
-                asp=typeof item.AssignedPerson=="undefined"?`${item.AssignedTeam.Title}`:`${item.AssignedTeam.Title}:${item.AssignedPerson.Title}`;
+                asp=typeof item.AssignedPerson.Title=="undefined"?`${item.AssignedTeam.Title}`:`${item.AssignedTeam.Title}:${item.AssignedPerson.Title}`;
+                at=item.AssignedTeam.Title;
             }
 
             const SPT=typeof item.SLAPriority !="undefined"?item.SLAPriority.Title:"-1";
@@ -117,9 +148,12 @@ export class sharepointservice{
                 Status:item.TicketsStatus.Title,
                 ContentType:item.ContentType.Name,
                 AssignedTeamPerson:asp,
-                AssignedPerson:typeof item.AssignedPerson!="undefined"?item.AssignedPerson.Title:"",
+                AssignedPerson:typeof item.AssignedPerson!="undefined"?item.AssignedPerson.EMail:"",
                 Created:moment(item.Created).format("MMM Do YY"),
-                RemainingTime:""
+                RemainingTime:"",
+                lastmodified:item.Modified,
+                lastmodifiedby:typeof item.Editor!="undefined"?item.Editor.Title:"",
+                AssignedTeam:at
             };
             tickets.push(ticket);
         });
@@ -342,9 +376,10 @@ export class sharepointservice{
                     Status:lstat.length>0?lstat[0].Title:"",
                     ContentType:lct.length>0?lct[0].Name:"",
                     AssignedTeamPerson:asp,
-                    AssignedPerson:ausers.length>0?ausers[0].Title:"",
+                    AssignedPerson:ausers.length>0?ausers[0].Email:"",
                     Created:moment(item.Created).format("MMM Do YY"),
-                    RemainingTime:""
+                    RemainingTime:"",
+                    AssignedTeam:ltmval
                 };
                 tickets.push(ticket);
         });
@@ -607,6 +642,39 @@ export class sharepointservice{
         });
     }
 
+    public getTicketAttachment(ticketid:string):Promise<any>{
+        const webUrl="https://cloudmission.sharepoint.com";
+        const ticketattachmenturl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})/AttachmentFiles?$select=FileName,ServerRelativeUrl`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+
+        return this._spclient.get(ticketattachmenturl,SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            }).then((data: any) => {
+                let ticketattachments:any[]=[];
+                data.value.forEach(attach => {
+                   const ticketattach:any={
+                       filename:attach.FileName,
+                       attachurl:`${webUrl}${attach.ServerRelativeUrl}`
+                   };
+                   ticketattachments.push(ticketattach);
+                });
+                return ticketattachments;
+            }).catch((ex) => {
+                console.log("Error while fetching Ticket attachments: ", ex);
+                throw ex;
+            });
+    }
+
     public updateTicketStatus(ticketid:string,statusid:string):Promise<any>{
         const updateurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})`;
         const getetagurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?$select=Id`;
@@ -680,7 +748,7 @@ export class sharepointservice{
     }
 
     public getTicketNotes(ticketid:string):Promise<any>{
-        const ticketnotesurl=`${this._weburl}_api/web/lists(guid'${this._conversationid}')/items?$filter=TicketIDId eq ${ticketid}&$select=ID,AuthorId,Communications,CommunicationInitiatorId,Created`;
+        const ticketnotesurl=`${this._weburl}_api/web/lists(guid'${this._conversationid}')/items?$filter=TicketIDId eq ${ticketid}&$select=ID,AuthorId,Communications,CommunicationInitiatorId,Created&$orderby=Id desc`;
         const options:ISPHttpClientOptions={
             headers:{
                 "odata-version":"3.0",
@@ -702,9 +770,9 @@ export class sharepointservice{
                    const user=users.length>0?users[0]:null;
                    const ticketnote:any={
                        author:user.Title,
-                       avatar:user.pictureurl,
+                       avatar:`${this._weburl}_layouts/15/userphoto.aspx?size=S&username=${user.Email}`,
                        content:note.Communications,
-                       datetime:moment(note.Created).format("MMM Do YY")
+                       datetime:note.Created
                    };
                    ticketnotes.push(ticketnote);
                 });
@@ -727,6 +795,67 @@ export class sharepointservice{
                     return response.status;
                 }
                 else { return Promise.reject(new Error(JSON.stringify(response))); }
+            });
+    }
+
+    public getTicketDetails(ticketid:String):Promise<ITicketItem[]>{
+        const selectquery:string="$select=ID,Title,SLAPriority/Title,Requester/Title,TicketsStatus/Title,ContentType/name,AssignedPerson/Title,AssignedTeam/Title,Created,TimeToFixModern,Modified,Editor/Title";
+        const expandquery:string="$expand=Requester,SLAPriority,TicketsStatus,ContentType,AssignedPerson,AssignedTeam,Editor";
+        const querygetAllItems = `${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?${selectquery}&${expandquery}`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=verbose"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(querygetAllItems, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+               return this.processtickets([data.d],null);
+               
+            }).catch((ex) => {
+                debugger;
+                console.log("Error while fetching ITSM tickets: ", ex);
+                throw ex;
+            });
+    }
+
+    public updateTicketDetails(itsmticket:any,ticketid:string):Promise<any>{
+        const updateurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})`;
+        const getetagurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?$select=Id`;
+        let etag: string = undefined;
+        return this._spclient.get(getetagurl,SPHttpClient.configurations.v1,{
+            headers: {
+              'Accept': 'application/json;odata=nometadata',
+              'odata-version': ''
+            }
+          }).then((response:SPHttpClientResponse)=>{
+            etag=response.headers.get("ETag");
+            return response.json().then((rdata)=>{
+                const body:string=JSON.stringify(itsmticket);
+                 const data:ISPHttpClientBatchOptions={
+                    headers:{
+                        "Accept":"application/json",
+                        "Content-Type":"application/json",
+                        "odata-version": "",
+                        "IF-MATCH": etag,
+                        "X-HTTP-Method": "MERGE"
+                    },
+                    body:body
+                 };
+                 return this._spclient.post(updateurl,SPHttpClient.configurations.v1,data).then((postresponse:SPHttpClientResponse)=>{
+                    return postresponse;
+                 });
+            });
+          }).catch((ex) => {
+                console.log("Error while updating ticket details: ", ex);
+                throw ex;
             });
     }
 }
