@@ -1,14 +1,14 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "ITSM-360-teams-app",
+    "name": "ITSM360teamsapp",
     "id": "528341f2-fbad-4e16-951d-a41cf4182f53",
     "version": "1.0.0.0",
-    "includeClientSideAssets": true,
+    "includeClientSideAssets": false,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false
   },
   "paths": {
-    "zippedPackage": "solution/itsm-360-teams-app.sppkg"
+    "zippedPackage": "solution/itsm360teamsapp.sppkg"
   }
 }

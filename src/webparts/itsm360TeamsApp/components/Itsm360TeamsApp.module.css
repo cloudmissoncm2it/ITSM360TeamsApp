@@ -61,6 +61,16 @@
     text-align: right;
   }
 
+  .ant-table-body .ant-table-fixed .ant-table-thead tr th:last-child,
+.ant-table-body .ant-table-fixed .ant-table-tbody tr td:last-child {
+  visibility: hidden;
+}
+
+.ant-form-item-label label{
+  font-weight: 500;
+  font-size: 13px;
+}
+
   /* .card-container > .ant-tabs-card > .ant-tabs-content {
     height: 120px;
     margin-top: -16px;

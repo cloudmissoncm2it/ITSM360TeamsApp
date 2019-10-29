@@ -1,18 +1,23 @@
-import { SPHttpClient, SPHttpClientResponse, ISPHttpClientOptions, ISPHttpClientBatchOptions, SPHttpClientBatch, ISPHttpClientBatchCreationOptions } from "@microsoft/sp-http";
+import { SPHttpClient, SPHttpClientResponse, ISPHttpClientOptions, ISPHttpClientBatchOptions, SPHttpClientBatch, ISPHttpClientBatchCreationOptions, HttpClient, IHttpClientOptions, HttpClientResponse } from "@microsoft/sp-http";
 import { ITicketItem } from "../model/ITicketItem";
 import * as moment from 'moment';
 import { ISLAPriority } from "../model/ISLAPriority";
 import { Istatus } from "../model/Istatus";
 import { IContype } from "../model/IContype";
+import * as microsoftTeams from '@microsoft/teams-js';
 import { ITeam } from "../model/ITeam";
 import { IUserDetails } from "../model/IUserDetails";
 import { SPUser } from "@microsoft/sp-page-context";
 import { IServiceGroup } from "../model/IServiceGroup";
 import { IService } from "../model/IService";
 import { IServiceCategory } from "../model/IServiceCategory";
+import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { string } from "prop-types";
 
 export class sharepointservice{
     private _spclient:SPHttpClient;
+    private _teamscontext:microsoftTeams.Context;
+    private _httpclient:HttpClient;
     private _weburl="https://cloudmission.sharepoint.com/sites/ITSM360Trial/";
     private _ticketsid="ae3bf971-67ad-407e-870a-71a5f6bb27f8";
     private _teamsid="023d0962-ec23-4596-a212-af1afd6781dc";
@@ -29,11 +34,11 @@ export class sharepointservice{
     public _lusers:IUserDetails[]=[];
     public _currentuser:SPUser;
 
-    constructor(spclient:SPHttpClient,user:SPUser){
-        this._spclient=spclient;
-        this._currentuser=user;
-        console.log(this._currentuser.email);
-        console.log(this._currentuser.loginName);
+    constructor(context:WebPartContext,teamscontext:microsoftTeams.Context){
+        this._spclient=context.spHttpClient;
+        this._currentuser=context.pageContext.user;
+        this._teamscontext=teamscontext;
+        this._httpclient=context.httpClient;
         this.getUsers(null);
     }
 
@@ -89,7 +94,6 @@ export class sharepointservice{
                "nexturl":data.d.__next
                };
             }).catch((ex) => {
-                debugger;
                 console.log("Error while fetching ITSM tickets: ", ex);
                 throw ex;
             });
@@ -798,9 +802,47 @@ export class sharepointservice{
             });
     }
 
-    public getTicketDetails(ticketid:String):Promise<ITicketItem[]>{
-        const selectquery:string="$select=ID,Title,SLAPriority/Title,Requester/Title,TicketsStatus/Title,ContentType/name,AssignedPerson/Title,AssignedTeam/Title,Created,TimeToFixModern,Modified,Editor/Title";
-        const expandquery:string="$expand=Requester,SLAPriority,TicketsStatus,ContentType,AssignedPerson,AssignedTeam,Editor";
+    public getTicketInternalNotes(ticketid:string):Promise<any>{
+        const ticketnotesurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})/versions/?$select=ID,Notes,VersionLabel,created,Author&$Orderby=VersionLabel desc`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(ticketnotesurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let ticketnotes:any[]=[];
+                const aitems=data.value;
+                for (let i = 0; i < aitems.length; i++) {
+                    if (aitems[i].Notes != null) {
+                        const ticketnote: any = {
+                            author: aitems[i].Author.LookupValue,
+                            avatar: `${this._weburl}_layouts/15/userphoto.aspx?size=S&username=${aitems[i].Author.Email}`,
+                            content: aitems[i].Notes,
+                            datetime: aitems[i].Created
+                        };
+                        ticketnotes.push(ticketnote);
+                    }
+                }
+                return ticketnotes;
+            }).catch((ex) => {
+                console.log("Error while fetching Ticket Notes: ", ex);
+                throw ex;
+            });
+    }
+
+    public getTicketDetails(ticketid:String):Promise<any>{
+        const selectquery:string="$select=Description,Urgency,Impact,ServiceGroups/Title,ServiceGroups/ID,RelatedServices/Title,RelatedServices/ID,RelatedCategories/Title,RelatedCategories/ID";
+        const expandquery:string="$expand=ServiceGroups,RelatedServices,RelatedCategories";
+        //const filterquery:string=`$filter=ID eq ${ticketid}`
         const querygetAllItems = `${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?${selectquery}&${expandquery}`;
         const options:ISPHttpClientOptions={
             headers:{
@@ -817,7 +859,9 @@ export class sharepointservice{
                 else { return Promise.reject(new Error(JSON.stringify(response))); }
             })
             .then((data: any) => {
-               return this.processtickets([data.d],null);
+                debugger;
+                console.log(data.d);
+               return data.d;
                
             }).catch((ex) => {
                 debugger;
@@ -857,5 +901,43 @@ export class sharepointservice{
                 console.log("Error while updating ticket details: ", ex);
                 throw ex;
             });
+    }
+
+    public PostToTeams(ticket:any):Promise<any>{
+        debugger;
+        const flowurl="https://prod-118.westeurope.logic.azure.com:443/workflows/e67a8cb8aefc45159ec946e8d4a9b3bf/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=deziuFc9wZlJkaItf7JNLN35glXJ4HLMdPFZnmNpIlc";
+        const requester=this._lusers.filter(i=>i.ID==ticket.RequesterId);
+        const tname=this._steams.filter(i=>i.ID==ticket.AssignedTeamId);
+        let ap:IUserDetails[]=[];
+        if(typeof ticket.AssignedPersonId !="undefined"){
+            ap=this._lusers.filter(i=>i.ID==ticket.AssignedPersonId);
+          }
+        const body:string=JSON.stringify({
+            "teamid":this._teamscontext.groupId,
+            "channelid":this._teamscontext.channelId,
+            "TicketID":"",
+            "TicketTitle":ticket.Title,
+            "RequestedBy":requester.length>0?requester[0].Title:"",
+            "TicketDescription":ticket.Description,
+            "AssignedTeam":tname.length>0?tname[0].Title:"",
+            "AssignedPerson":ap.length>0?ap[0].Title:"",
+            "Urgency":ticket.Urgency,
+            "Impact":ticket.Impact,
+            "pictureurl":requester.length>0?`${this._weburl}_layouts/15/userphoto.aspx?size=S&username=${requester[0].Email}`:""
+        });    
+        const requestHeaders: Headers = new Headers();
+        requestHeaders.append('Content-type', 'application/json');
+
+        const httpClientOptions: IHttpClientOptions = {
+            body: body,
+            headers: requestHeaders
+          };
+
+          return this._httpclient.post(flowurl,HttpClient.configurations.v1,httpClientOptions).then((response: HttpClientResponse) => {
+            if (response.status >= 200 && response.status < 300) {
+                return response.status;
+            }
+            else { return Promise.reject(new Error(JSON.stringify(response))); }
+        });
     }
 }

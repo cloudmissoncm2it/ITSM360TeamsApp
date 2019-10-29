@@ -10,21 +10,38 @@ import {
 import * as strings from 'Itsm360TeamsAppWebPartStrings';
 import {Itsm360TeamsApp} from './components/Itsm360TeamsApp';
 import { IItsm360TeamsAppProps } from './components/Itsm360TeamsApp';
+import * as microsoftTeams from '@microsoft/teams-js';
 
 export interface IItsm360TeamsAppWebPartProps {
   description: string;
 }
 
 export default class Itsm360TeamsAppWebPart extends BaseClientSideWebPart<IItsm360TeamsAppWebPartProps> {
+  
+  private _teamsContext:microsoftTeams.Context;
+ 
+  protected onInit(): Promise<any> {
+    let retVal: Promise<any> = Promise.resolve();
+    if (this.context.microsoftTeams) {
+      retVal = new Promise((resolve, reject) => {
+        this.context.microsoftTeams.getContext(context => {
+          this._teamsContext = context;
+          resolve();
+        });
+      });
+    }
+    return retVal;
+  }
 
   public render(): void {
     const element: React.ReactElement<IItsm360TeamsAppProps > = React.createElement(
       Itsm360TeamsApp,
       {
         description: this.properties.description,
-        sphttpclient:this.context.spHttpClient,
-        currentuser:this.context.pageContext.user,
-        context:this.context
+        sphttpclient:null,
+        currentuser:null,
+        context:this.context,
+        teamscontext:this._teamsContext
       }
     );
 

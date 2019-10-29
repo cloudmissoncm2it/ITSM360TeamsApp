@@ -25,7 +25,6 @@ export class Itsm360Attachment extends React.Component<IItsm360AttachmentProps,I
     }
 
     public handleOk=(e)=>{
-        debugger;
         if(this._file){
         this.props.sharepointservice.uploadTicketAttachment(this._file,this.props.selectedTicket.ID).then(data=>{
             this.setState({ismodalvisible:false});
@@ -38,7 +37,6 @@ export class Itsm360Attachment extends React.Component<IItsm360AttachmentProps,I
     }
 
     public uploadfilechange=info=>{
-        debugger;
         this._file=info.file;
         info.onSuccess(null,info.file);
     }

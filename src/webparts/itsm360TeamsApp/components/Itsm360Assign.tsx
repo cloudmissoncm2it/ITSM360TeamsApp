@@ -58,7 +58,6 @@ export class Itsm360Assign extends React.Component<IItsm360AssignProps,IItsm360A
     }
 
     public _getAssignePickerItems=(people: any[])=> {
-        debugger;
         /**
          * structure of the people object
          * id: "i:0#.f|membership|tka_itsmcompany.net#ext#@cloudmission.net"

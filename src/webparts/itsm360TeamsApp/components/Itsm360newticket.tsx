@@ -63,7 +63,6 @@ export class Itsm360newticket extends React.Component<IItsm360newticketProps, II
   }
 
   public handleOk = (e) => {
-    debugger;
     this.setState({ modalsave: true });
     const {title,requestor,origin,servicegroup,service,subcategory,impact,urgency,description,teamid,assignedperson,internalnote,statusid}=this.state;
     let requestorid:IUserDetails[]=[];
@@ -101,7 +100,7 @@ export class Itsm360newticket extends React.Component<IItsm360newticketProps, II
   
       this.props.sharepointservice.addITSMTicket(newticket).then((result)=>{
         console.log("post success: ", result);
-        this.props.refreshticketsdata();
+        this.props.refreshticketsdata(newticket);
         this.setState({
           modalvisible: false,
           modalsave:false

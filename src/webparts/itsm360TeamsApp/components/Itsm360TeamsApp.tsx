@@ -5,6 +5,7 @@ import { ITicketItem } from '../model/ITicketItem';
 import { SPHttpClient } from '@microsoft/sp-http';
 import { sharepointservice } from '../service/sharepointservice';
 import { ISLAPriority } from '../model/ISLAPriority';
+import * as microsoftTeams from '@microsoft/teams-js';
 import { Istatus } from '../model/Istatus';
 import { IContype } from '../model/IContype';
 import { SPUser } from '@microsoft/sp-page-context';
@@ -22,6 +23,7 @@ export interface IItsm360TeamsAppProps {
   sphttpclient: SPHttpClient;
   currentuser: SPUser;
   context: WebPartContext;
+  teamscontext:microsoftTeams.Context;
 }
 
 export interface IItsm360TeamsAppState {
@@ -41,7 +43,7 @@ export interface IItsm360TeamsAppState {
   selectedRowKeys: any[];
   selectedTicket?: ITicketItem;
   isDrawerVisible?:boolean;
-  selectectedTicketId?:string;
+  selectectedTicket?:ITicketItem;
 }
 
 export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IItsm360TeamsAppState> {
@@ -53,7 +55,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
   constructor(props: IItsm360TeamsAppProps) {
     super(props);
     //this._mockService=new mockdataservice();
-    this._spservice = new sharepointservice(this.props.sphttpclient, this.props.currentuser);
+    this._spservice = new sharepointservice(this.props.context,this.props.teamscontext);
     this.state = {
       tickets: [],
       priorities: [],
@@ -102,14 +104,17 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
 
   }
 
-  public refreshticketsdata = () => {
+  public refreshticketsdata = (newticket) => {
     this.setState({ loading: true });
-    this._spservice.getITSMTickets().then((items) => {
+    this._spservice.getITSMTickets(null,[],null).then((items) => {
       this.setState({
         loading: false,
         tickets: items.tickets
       });
       this._nexturl=items.nexturl;
+    });
+    this._spservice.PostToTeams(newticket).then((resp)=>{
+      console.log(resp);
     });
   }
 
@@ -194,7 +199,6 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
   }
 
   public onCardClick=(e)=>{
-    debugger;
     let viewname=null;
     if(e.currentTarget.className.indexOf("myview")>-1){
       viewname="myview";
@@ -213,6 +217,16 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
         tickets: items.tickets
       });
       this._nexturl=items.nexturl;
+    });
+  }
+
+  public onTitleClick=(e)=>{
+    debugger;
+    this.setState({selectectedTicket:undefined});
+    const selectedid=e.currentTarget.id;
+    const st=this.state.tickets.filter(i=>i.ID==selectedid);
+    this.setState({
+      selectectedTicket:st[0]
     });
   }
 
@@ -244,9 +258,9 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
       {
         title: 'Title',
         dataIndex: 'Title',
-        render: (title,record) => <div><Icon type="info-circle" style={{ margin: '0 8px 0 0' }}  />{title}</div>,
+        render: (title,record) => <div><Icon type="info-circle" /><Itsm360EditTicket sharepointservice={this._spservice} selectedTicket={record} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} tictitle={title} /></div>,
         ...this.getColumnSearchProps('Title'),
-        width: '25%'
+        width: '15%'
       },
       {
         title: 'Requester',
@@ -276,14 +290,14 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
       //   title: 'Remaining Time',
       //   dataIndex: 'RemainingTime'
       // }
-      {
-        title:'Action',
-        render:(text,record)=>(
-          <span>
-            <Itsm360EditTicket sharepointservice={this._spservice} selectedTicket={record} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} />
-          </span>
-        ),
-      }
+      // {
+      //   title:'Action',
+      //   render:(text,record)=>(
+      //     <span>
+      //       <Itsm360EditTicket sharepointservice={this._spservice} selectedTicket={record} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} />
+      //     </span>
+      //   ),
+      // }
     ];
 
     return (
@@ -343,10 +357,6 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
                       <Itsm360StatusUpdate visible={hasSelected} sharepointservice={this._spservice} selectedTicket={this.state.selectedTicket} status={this.state.statuses} />
                       <Itsm360Assign visible={hasSelected} sharepointservice={this._spservice} selectedTicket={this.state.selectedTicket} ppcontext={this.props.context} />
                       <Itsm360Attachment visible={hasSelected} sharepointservice={this._spservice} selectedTicket={this.state.selectedTicket} />
-                      {/* <Button disabled={!hasSelected} >
-                        <Icon type="check-square" />
-                        Resolve
-                      </Button> */}
                       <Itsm360AddNotes sharepointservice={this._spservice} visible={hasSelected} selectedTicket={this.state.selectedTicket} />
                       <Itsm360newticket sharepointservice={this._spservice} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} refreshticketsdata={this.refreshticketsdata} />
                     </div>
