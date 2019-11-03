@@ -12,7 +12,8 @@ import { IServiceGroup } from "../model/IServiceGroup";
 import { IService } from "../model/IService";
 import { IServiceCategory } from "../model/IServiceCategory";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
-import { string } from "prop-types";
+import { ICI } from "../model/ICI";
+import { IAsset } from "../model/IAsset";
 
 export class sharepointservice{
     private _spclient:SPHttpClient;
@@ -27,11 +28,14 @@ export class sharepointservice{
     private _servicesid="ea98ea2b-5179-4c18-982b-d1142ca3550f";
     private _subcategory="5cd9db0b-3549-41d9-adb9-a1f28c94a6a2";
     private _conversationid="3471b6ec-1c99-4930-97ed-20da4b63ab19";
+    private _CIid="eabf87f1-3197-48fd-a808-c8de444a356f";
+    private _assetsid="03c1b9b3-551d-449b-a379-66be5a6f3988";
     private _spris:ISLAPriority[]=[];
     private _stats:Istatus[]=[];
     private _sconts:IContype[]=[];
     private _steams:ITeam[]=[];
     public _lusers:IUserDetails[]=[];
+    public _CIs:ICI[]=[];
     public _currentuser:SPUser;
 
     constructor(context:WebPartContext,teamscontext:microsoftTeams.Context){
@@ -40,6 +44,9 @@ export class sharepointservice{
         this._teamscontext=teamscontext;
         this._httpclient=context.httpClient;
         this.getUsers(null);
+        this.getCIsLookUp().then((data)=>{
+            this._CIs=data;
+        });
     }
 
     public getITSMTickets(nexturl?:string,prevtickets?:ITicketItem[],cview?:string):Promise<any>{
@@ -103,7 +110,6 @@ export class sharepointservice{
     private processtickets(items:any[],prevItems:ITicketItem[]):any[]{
         let tickets:ITicketItem[]=prevItems;
         items.forEach((item)=>{
-            debugger;
             let asp:string="";
             let pcolor:string="";
             let at:string="";
@@ -231,6 +237,7 @@ export class sharepointservice{
         let sfils:string="";
         let ctfils:string="";
         let tfils:string="";
+        let ifils:string="";
         if(typeof filters.Priority!="undefined"){
             filters.Priority.forEach((filter,key)=>{
                 if(pfils.length<=1){
@@ -291,6 +298,22 @@ export class sharepointservice{
             fils=`<And>${fils}${tfils}</And>`;
         }else if(tfils.length>0){
             fils=tfils;
+        }
+
+        if(typeof filters.ID!="undefined"){
+            filters.ID.forEach((filter,key)=>{
+                if(ifils.length<=1){
+                    ifils=`<Eq><FieldRef Name="ID"/><Value Type="Number">${filter}</Value></Eq>`;
+                }else{
+                    ifils=`<Or>${ifils}<Eq><FieldRef Name="ID"/><Value Type="Number">${filter}</Value></Eq></Or>`;
+                }
+            });
+        }
+
+        if(ifils.length>0 && fils.length>0){
+            fils=`<And>${fils}${ifils}</And>`;
+        }else if(ifils.length>0){
+            fils=ifils;
         }
 
         const itemurl:string=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/GetItems`;
@@ -423,11 +446,9 @@ export class sharepointservice{
                     this._lusers.push(luser);
                 });
                 if(data.d.__next){
-                    debugger;
                     this.getUsers(data.d.__next);
                 }
             }).catch((ex) => {
-                debugger;
                 console.log("Error while fetching User Details: ", ex);
                 throw ex;
             });
@@ -454,7 +475,6 @@ export class sharepointservice{
             .then((data: any) => {
                 return data.value.length;
             }).catch((ex) => {
-                debugger;
                 console.log("Error while fetching My tickets count: ", ex);
                 throw ex;
             });
@@ -479,7 +499,6 @@ export class sharepointservice{
             .then((data: any) => {
                 return data.value.length;
             }).catch((ex) => {
-                debugger;
                 console.log("Error while fetching My tickets count: ", ex);
                 throw ex;
             });
@@ -505,7 +524,6 @@ export class sharepointservice{
             .then((data: any) => {
                 return data.value.length;
             }).catch((ex) => {
-                debugger;
                 console.log("Error while fetching My tickets count: ", ex);
                 throw ex;
             });
@@ -523,7 +541,6 @@ export class sharepointservice{
             .then((data: any) => {
                 return data.ItemCount;
             }).catch((ex) => {
-                debugger;
                 console.log("Error while fetching My tickets count: ", ex);
                 throw ex;
             });
@@ -840,8 +857,8 @@ export class sharepointservice{
     }
 
     public getTicketDetails(ticketid:String):Promise<any>{
-        const selectquery:string="$select=Description,Urgency,Impact,ServiceGroups/Title,ServiceGroups/ID,RelatedServices/Title,RelatedServices/ID,RelatedCategories/Title,RelatedCategories/ID";
-        const expandquery:string="$expand=ServiceGroups,RelatedServices,RelatedCategories";
+        const selectquery:string="$select=Description,RequestSummary,Urgency,Impact,ServiceGroups/Title,ServiceGroups/ID,RelatedServices/Title,RelatedServices/ID,RelatedCategories/Title,RelatedCategories/ID,RelatedCIs/Title,RelatedCIs/ID,RelatedAssets/ID";
+        const expandquery:string="$expand=ServiceGroups,RelatedServices,RelatedCategories,RelatedCIs,RelatedAssets";
         //const filterquery:string=`$filter=ID eq ${ticketid}`
         const querygetAllItems = `${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?${selectquery}&${expandquery}`;
         const options:ISPHttpClientOptions={
@@ -859,12 +876,10 @@ export class sharepointservice{
                 else { return Promise.reject(new Error(JSON.stringify(response))); }
             })
             .then((data: any) => {
-                debugger;
                 console.log(data.d);
                return data.d;
                
             }).catch((ex) => {
-                debugger;
                 console.log("Error while fetching ITSM tickets: ", ex);
                 throw ex;
             });
@@ -885,8 +900,8 @@ export class sharepointservice{
                 const body:string=JSON.stringify(itsmticket);
                  const data:ISPHttpClientBatchOptions={
                     headers:{
-                        "Accept":"application/json",
-                        "Content-Type":"application/json",
+                        "Accept":"application/json;odata=verbose",
+                        "Content-Type":"application/json;odata=verbose",
                         "odata-version": "",
                         "IF-MATCH": etag,
                         "X-HTTP-Method": "MERGE"
@@ -904,7 +919,6 @@ export class sharepointservice{
     }
 
     public PostToTeams(ticket:any):Promise<any>{
-        debugger;
         const flowurl="https://prod-118.westeurope.logic.azure.com:443/workflows/e67a8cb8aefc45159ec946e8d4a9b3bf/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=deziuFc9wZlJkaItf7JNLN35glXJ4HLMdPFZnmNpIlc";
         const requester=this._lusers.filter(i=>i.ID==ticket.RequesterId);
         const tname=this._steams.filter(i=>i.ID==ticket.AssignedTeamId);
@@ -939,5 +953,112 @@ export class sharepointservice{
             }
             else { return Promise.reject(new Error(JSON.stringify(response))); }
         });
+    }
+
+    public getCIsLookUp():Promise<any>{
+        const ciurl=`${this._weburl}_api/web/lists(guid'${this._CIid}')/items?$select=ID,Title`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(ciurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let cis:ICI[]=[];
+                data.value.forEach(lci => {
+                   const ci:ICI={
+                    Title:lci.Title,
+                    ID:lci.ID
+                   };
+                   cis.push(ci);
+                });
+                return cis;
+            }).catch((ex) => {
+                console.log("Error while fetching CIs lookupdata: ", ex);
+                throw ex;
+            });
+    }
+
+    public getuserAssets(ticket:ITicketItem):Promise<any>{
+        const requestor=this._lusers.filter(i => i.Title == ticket.Requester);
+        const userid=requestor.length>0?requestor[0].ID:"-1";
+        const selectquery:string="$select=ID,Title,Model/Title,LifeCycleStage/Title,ContentType/name";
+        const expandquery:string="$expand=Model,LifeCycleStage,ContentType";
+        const filterquery:string=`$filter= EndUserId eq ${userid} and LifeCycleStageId ne 4`;
+        const querygetAllItems = `${this._weburl}_api/web/lists(guid'${this._assetsid}')/items?${selectquery}&${expandquery}&${filterquery}`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(querygetAllItems, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let assets:IAsset[]=[];
+                data.value.forEach(lasset => {
+                   const asset:IAsset={
+                    Title:lasset.Title,
+                    Model:lasset.Model.Title,
+                    State:lasset.LifeCycleStage.Title,
+                    Type:lasset.ContentType.Name,
+                    key:lasset.ID,
+                    ID:lasset.ID
+                   };
+                   assets.push(asset);
+                });
+                console.log(assets);
+                return assets;
+            }).catch((ex) => {
+                console.log("Error while fetching assets: ", ex);
+                throw ex;
+            });
+    }
+
+    public updateTicketRelatedAssets(assetdetails:any,ticketid:string):Promise<any>{
+        const updateurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})`;
+        const getetagurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?$select=Id`;
+        let etag: string = undefined;
+        return this._spclient.get(getetagurl,SPHttpClient.configurations.v1,{
+            headers: {
+              'Accept': 'application/json;odata=nometadata',
+              'odata-version': ''
+            }
+          }).then((response:SPHttpClientResponse)=>{
+            etag=response.headers.get("ETag");
+            return response.json().then((rdata)=>{
+                const body:string=JSON.stringify(assetdetails);
+                 const data:ISPHttpClientBatchOptions={
+                    headers:{
+                        "Accept":"application/json;odata=verbose",
+                        "Content-Type":"application/json;odata=verbose",
+                        "odata-version": "",
+                        "IF-MATCH": etag,
+                        "X-HTTP-Method": "MERGE"
+                    },
+                    body:body
+                 };
+                 return this._spclient.post(updateurl,SPHttpClient.configurations.v1,data).then((postresponse:SPHttpClientResponse)=>{
+                    return postresponse;
+                 });
+            });
+          }).catch((ex) => {
+                console.log("Error while updating ticket details: ", ex);
+                throw ex;
+            });
     }
 }

@@ -44,6 +44,7 @@ export interface IItsm360TeamsAppState {
   selectedTicket?: ITicketItem;
   isDrawerVisible?:boolean;
   selectectedTicket?:ITicketItem;
+  cardselected?:string;
 }
 
 export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IItsm360TeamsAppState> {
@@ -173,7 +174,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
   public handleTableChange = (pagination, filters, sorter) => {
     const pager = { ...this.state.pagination };
     pager.current = pagination.current;
-    if (typeof filters.Priority != "undefined" || typeof filters.Status != "undefined" || typeof filters.ContentType != "undefined" || typeof filters.Title != "undefined") {
+    if (typeof filters.Priority != "undefined" || typeof filters.Status != "undefined" || typeof filters.ContentType != "undefined" || typeof filters.Title != "undefined"||typeof filters.ID != "undefined") {
       this.setState({loading:true});
       this._spservice.getSearchResults(filters).then((items) => {
         pagination.total = items.length;
@@ -199,15 +200,20 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
   }
 
   public onCardClick=(e)=>{
+    debugger;
     let viewname=null;
-    if(e.currentTarget.className.indexOf("myview")>-1){
+    if(e.currentTarget.id.indexOf("myview")>-1){
       viewname="myview";
-    }else if(e.currentTarget.className.indexOf("unassignedview")>-1){
+      this.setState({cardselected:"1"});
+    }else if(e.currentTarget.id.indexOf("unassignedview")>-1){
       viewname="unassignedview";
-    }else if(e.currentTarget.className.indexOf("openview")>-1){
+      this.setState({cardselected:"2"});
+    }else if(e.currentTarget.id.indexOf("openview")>-1){
       viewname="openview";
-    }else if(e.currentTarget.className.indexOf("allview")>-1){
+      this.setState({cardselected:"3"});
+    }else if(e.currentTarget.id.indexOf("allview")>-1){
       viewname="allview";
+      this.setState({cardselected:"4"});
     }
 
     this.setState({ loading: true });
@@ -240,10 +246,12 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
     const hasSelected = selectedRowKeys.length == 1;
 
     const columns = [
-      // {
-      //   title:'ID',
-      //   dataIndex:'ID'
-      // },
+      {
+        title:'ID',
+        dataIndex:'ID',
+        sorter: (a, b) => a.ID - b.ID,
+        ...this.getColumnSearchProps('ID')
+      },
       {
         title: 'Priority',
         dataIndex: 'Priority',
@@ -258,7 +266,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
       {
         title: 'Title',
         dataIndex: 'Title',
-        render: (title,record) => <div><Icon type="info-circle" /><Itsm360EditTicket sharepointservice={this._spservice} selectedTicket={record} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} tictitle={title} /></div>,
+        render: (title,record) => <div><Itsm360EditTicket sharepointservice={this._spservice} selectedTicket={record} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} tictitle={title} /></div>,
         ...this.getColumnSearchProps('Title'),
         width: '15%'
       },
@@ -308,7 +316,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
               <div style={{ background: '#ECECEC', padding: '30px' }}>
                 <Row gutter={16}>
                   <Col className="gutter-row" span={6}>
-                    <Card className="myview" onClick={this.onCardClick} style={{cursor:"pointer"}}>
+                    <Card className={this.state.cardselected=="1"?"cardselected":"cardunselected"} id="myview" onClick={this.onCardClick} >
                       <Statistic
                         title="My Tickets"
                         value={this.state.mytickets}
@@ -318,7 +326,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
                     </Card>
                   </Col>
                   <Col className="gutter-row" span={6}>
-                    <Card className="unassignedview" onClick={this.onCardClick} style={{cursor:"pointer"}}>
+                    <Card className={this.state.cardselected=="2"?"cardselected":"cardunselected"} id="unassignedview" onClick={this.onCardClick}>
                       <Statistic
                         title="UnAssigned Tickets"
                         value={this.state.unassignedtickets}
@@ -328,7 +336,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
                     </Card>
                   </Col>
                   <Col className="gutter-row" span={6}>
-                    <Card className="openview" onClick={this.onCardClick} style={{cursor:"pointer"}}>
+                    <Card className={this.state.cardselected=="3"?"cardselected":"cardunselected"} id="openview" onClick={this.onCardClick}>
                       <Statistic
                         title="Open Tickets"
                         value={this.state.opentickets}
@@ -338,7 +346,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
                     </Card>
                   </Col>
                   <Col className="gutter-row" span={6}>
-                    <Card className="allview" onClick={this.onCardClick} style={{cursor:"pointer"}}>
+                    <Card className={this.state.cardselected=="4"?"cardselected":"cardunselected"} id="allview" onClick={this.onCardClick}>
                       <Statistic
                         title="All Tickets"
                         value={this.state.alltickets}

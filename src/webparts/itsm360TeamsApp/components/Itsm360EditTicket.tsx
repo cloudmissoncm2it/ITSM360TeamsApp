@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Drawer, Button, Row, Col, Divider, Tabs, Form, Select, Input, List, Comment, Cascader,Descriptions } from 'antd';
+import { Drawer, Button, Row, Col, Divider, Tabs, Form, Select, Input, List, Comment,Descriptions,Avatar } from 'antd';
 import { sharepointservice } from '../service/sharepointservice';
 import { ITicketItem } from '../model/ITicketItem';
 import * as moment from 'moment';
@@ -8,6 +8,7 @@ import { Istatus } from '../model/Istatus';
 import { PeoplePicker, PrincipalType } from "@pnp/spfx-controls-react/lib/PeoplePicker";
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IUserDetails } from '../model/IUserDetails';
+import {Itsm360Classification} from './Itsm360Classification';
 const { TabPane } = Tabs;
 const { Option } = Select;
 const { TextArea } = Input;
@@ -42,18 +43,17 @@ export interface IItsm360EditTicketState {
     ticketdescription?: string;
     ticketimpact?: string;
     ticketurgency?: string;
-    cascaderoptions?: any[];
-    //cascaderdefault?:any[];
     servicegroup?: string;
     service?: string;
     subcategory?: string;
+    classificationvalues?:any;
 }
 
 export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, IItsm360EditTicketState>{
 
     private _sgtitle:string;
     private _setitle:string;
-    private _scategorytitle:String;
+    private _scategorytitle:string;
 
     constructor(props: IItsm360EditTicketProps) {
         super(props);
@@ -91,7 +91,6 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
         if (Status.indexOf("Closed") > -1) {
             this.setState({ isStatusClosed: true });
         }
-        //console.log(this.props.selectedTicket);
         spservice.getTicketNotes(ID).then((notesdata) => {
             this.setState({ notesdata: notesdata });
         });
@@ -105,17 +104,29 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                 ticketurgency: ticketdata.Urgency,
                 ticketimpact: ticketdata.Impact
             });
+            debugger;
             this._sgtitle=ticketdata.ServiceGroups.Title;
             this._setitle=ticketdata.RelatedServices.Title;
             this._scategorytitle=ticketdata.RelatedCategories.Title;
-            //const dv=[ticketdata.ServiceGroups.ID,ticketdata.RelatedServices.ID,ticketdata.RelatedCategories.ID];
-            spservice.getlookupdatanew().then((cddata) => {
-                this.setState({
-                    cascaderoptions: cddata,
-                    servicegroup: ticketdata.ServiceGroups.ID,
-                    service: ticketdata.RelatedServices.ID,
-                    subcategory:ticketdata.RelatedCategories.ID
-                });
+            const ciresults=ticketdata.RelatedCIs.results;
+            const ras=ticketdata.RelatedAssets.results;
+            let raas:any[]=[];
+            ras.forEach((ra)=>{
+                raas.push(ra.ID);
+            });
+            const x=JSON.parse(ticketdata.RequestSummary);
+            this.setState({
+                classificationvalues:{
+                    servicegroupid:ticketdata.ServiceGroups.ID,
+                    serviceid:ticketdata.RelatedServices.ID,
+                    subcategoryid:ticketdata.RelatedCategories.ID,
+                    relatedCiid:ciresults.length>0?ciresults[0].ID:"",
+                    relatedCititle:ciresults.length>0?ciresults[0].Title:"",
+                    servicegrouptitle:this._sgtitle,
+                    servicetitle:this._setitle,
+                    subcategorytitle:this._scategorytitle,
+                    relatedassets:raas
+                }
             });
         });
 
@@ -182,35 +193,6 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
         this.setState({ tickettitle: e.currentTarget.value });
     }
 
-    public cascaderChange = (e) => {
-        console.log(e);
-        if (e.length == 3) {
-            this.setState({
-                servicegroup: e[0],
-                service: e[1],
-                subcategory: e[2]
-            });
-        } else if (e.length == 2) {
-            this.setState({
-                servicegroup: e[0],
-                service: e[1],
-                subcategory: "-1"
-            });
-        } else if (e.length == 1) {
-            this.setState({
-                servicegroup: e[0],
-                service: "-1",
-                subcategory: "-1"
-            });
-        } else {
-            this.setState({
-                servicegroup: "-1",
-                service: "-1",
-                subcategory: "-1"
-            });
-        }
-    }
-
     public urgencyChange = (value) => {
         this.setState({ ticketurgency: value });
     }
@@ -221,7 +203,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
 
     public onSubmit = () => {
         this.setState({ loading: true });
-        const { assignedperson, newat, newstatus, closingComments, tickettitle, ticketdescription, ticketimpact, ticketurgency,requester,servicegroup,service,subcategory,newinternalnote } = this.state;
+        const { assignedperson, newat, newstatus, closingComments, tickettitle, ticketdescription, ticketimpact, ticketurgency,requester,newinternalnote } = this.state;
         let assignedpersonid: IUserDetails[] = [];
         if (typeof assignedperson != "undefined" && assignedperson.length > 0) {
             assignedpersonid = this.props.sharepointservice._lusers.filter(i => i.Email == assignedperson[0].secondaryText);
@@ -236,7 +218,9 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
             requesterid = this.props.sharepointservice._lusers.filter(i => i.Title == this.props.selectedTicket.Requester);
         }
 
+        const {servicegroupid,serviceid,subcategoryid,relatedCiid}=this.state.classificationvalues;
         const updateticket = {
+            "__metadata":{"type":"SP.Data.TicketsListItem"},
             AssignedPersonId: assignedpersonid.length > 0 ? assignedpersonid[0].ID : null,
             TicketsStatusId: newstatus,
             AssignedTeamId: newat,
@@ -246,10 +230,11 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
             Description:ticketdescription,
             Title: tickettitle,
             RequesterId:requesterid.length>0?requesterid[0].ID:null,
-            ServiceGroupsId:servicegroup,
-            RelatedServicesId:service,
-            RelatedCategoriesId:subcategory,
-            Notes:newinternalnote
+            ServiceGroupsId:servicegroupid,
+            RelatedServicesId:serviceid,
+            RelatedCategoriesId:subcategoryid,
+            Notes:newinternalnote,
+            RelatedCIsId:{'results':[relatedCiid]}
         };
 
         this.props.sharepointservice.updateTicketDetails(updateticket, this.props.selectedTicket.ID).then((data) => {
@@ -258,6 +243,10 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
             console.log("From ticket update componenet: Error while updating ticket details; ", ex);
             this.setState({ errorMessage: "error while updating ticket details", iserror: true, loading: false });
         });
+    }
+
+    public getclassificationvalues=(cvalues)=>{
+        this.setState({classificationvalues:cvalues});
     }
 
     public render(): React.ReactElement<IItsm360EditTicketProps> {
@@ -287,14 +276,14 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                     <div>
                         <Row align="middle" type="flex" justify="space-between">
                             <Col span={5}>
-                                <Form.Item label="Assigned Team" style={{ width: "50%" }}>
-                                    <Select placeholder="Select a Team" defaultValue={ateamid} onChange={this.ateamchange}>
+                                <Form.Item label="Assigned Team" >
+                                    <Select placeholder="Select a Team" defaultValue={ateamid} onChange={this.ateamchange} style={{ width: "90%" }}>
                                         {this.props.teams.map((team: ITeam, index) => <Option value={team.ID} key={index}>{team.Title}</Option>)}
                                     </Select>
                                 </Form.Item>
                             </Col>
                             <Col span={7}>
-                                <Form.Item label="Assigned Person" style={{ width: "80%" }}>
+                                <Form.Item label="Assigned Person" style={{ width: "90%" }}>
                                     <PeoplePicker
                                         context={this.props.ppcontext}
                                         titleText=""
@@ -311,7 +300,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                             </Col>
                             <Col span={5}>
                                 <Form.Item label="Status">
-                                    <Select placeholder="Select Status" defaultValue={statusid} onChange={this.tstatuschange} >
+                                    <Select placeholder="Select Status" defaultValue={statusid} onChange={this.tstatuschange} style={{ width: "90%" }} >
                                         {this.props.status.map((stat: Istatus, index) => <Option value={stat.ID} key={index}>{stat.Title}</Option>)}
                                     </Select>
                                 </Form.Item>
@@ -336,9 +325,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                             </Col>
                             <Col span={1}>
                                 <Form.Item label="Priority">
-                                    <p style={{ background: Prioritycolor, textAlign: 'center', color: '#ffffff', padding: '3%', display: 'inline' }}>
-                                        {Priority}
-                                    </p>
+                                    <Avatar shape="square" style={{background: Prioritycolor,color:"#fff"}}>{Priority}</Avatar>
                                 </Form.Item>
                             </Col>
                         </Row>
@@ -387,11 +374,8 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                                             </Form.Item>
                                         </TabPane>
                                         <TabPane tab="Classification" key="2">
-                                            <Form layout="vertical">
-                                                <Form.Item label="Classification" style={{ width: "50%" }}>
-                                                    <Cascader options={this.state.cascaderoptions} onChange={this.cascaderChange} defaultValue={[this.state.servicegroup,this.state.service,this.state.subcategory]} />
-                                                </Form.Item>
-                                            </Form>
+                                            {typeof this.state.classificationvalues!="undefined"?<Itsm360Classification sharepointservice={this.props.sharepointservice} selectedTicket={this.props.selectedTicket} defaultvalues={this.state.classificationvalues} getclassificationvalues={this.getclassificationvalues} />:""}
+
                                         </TabPane>
                                         <TabPane tab="Notes" key="3">
                                             <Form.Item>

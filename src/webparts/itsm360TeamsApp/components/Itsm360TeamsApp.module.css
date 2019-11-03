@@ -71,6 +71,16 @@
   font-size: 13px;
 }
 
+.cardunselected{
+  cursor: pointer;
+  background-color: #fff;
+}
+
+.cardselected{
+  cursor: pointer;
+  background-color:gainsboro;
+}
+
   /* .card-container > .ant-tabs-card > .ant-tabs-content {
     height: 120px;
     margin-top: -16px;
