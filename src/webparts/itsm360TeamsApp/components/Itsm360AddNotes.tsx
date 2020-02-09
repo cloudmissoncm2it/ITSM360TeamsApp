@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { Modal, Button, Icon, List, Comment, Form, Input, Alert } from 'antd';
+import { Modal, Button, Icon, Form, Alert } from 'antd';
 import { sharepointservice } from '../service/sharepointservice';
+import { RichText } from "@pnp/spfx-controls-react/lib/RichText";
 import { ITicketItem } from '../model/ITicketItem';
 import { IUserDetails } from '../model/IUserDetails';
 import * as moment from 'moment';
@@ -8,14 +9,14 @@ import * as moment from 'moment';
 export interface IItsm360AddNotesProps {
     visible: boolean;
     sharepointservice: sharepointservice;
-    selectedTicket: ITicketItem;
+    selectedTicket?: ITicketItem;
+    selectedRowKeys?: string[];
 }
 
 export interface IItsm360AddNotesState {
     ismodalvisible: boolean;
     modalsave?: boolean;
     errorMessage?: boolean;
-    notesdata?: any[];
     newnote?: string;
 }
 
@@ -26,27 +27,30 @@ export class Itsm360AddNotes extends React.Component<IItsm360AddNotesProps, IIts
         this.state = {
             ismodalvisible: this.props.visible,
             modalsave: false,
-            errorMessage: false,
-            notesdata: []
+            errorMessage: false
         };
     }
 
     public handleOk = (e) => {
         const { newnote } = this.state;
         this.setState({ modalsave: true });
-        if (typeof newnote != "undefined") {
-            const Currentusers: IUserDetails[] = this.props.sharepointservice._lusers.filter(i => i.Email == this.props.sharepointservice._currentuser.email);
-            const tnote = {
-                TicketIDId: this.props.selectedTicket.ID,
-                Communications: newnote,
-                CommunicationInitiatorId: Currentusers.length > 0 ? Currentusers[0].ID : null
-            };
-            this.props.sharepointservice.addTicketNotes(tnote).then((tdata) => {
-                this.setState({
-                    modalsave: false,
-                    ismodalvisible: false,
-                    errorMessage: false
+        const Currentusers: IUserDetails[] = this.props.sharepointservice._lusers.filter(i => i.Email == this.props.sharepointservice._currentuser.email);
+        const curruser: any = Currentusers.length > 0 ? Currentusers[0].ID : null;
+        if (typeof newnote != "undefined" && newnote.length > 0) {
+            this.props.selectedRowKeys.forEach((ticketid) => {
+                const tnote = {
+                    TicketIDId: ticketid,
+                    Communications: newnote,
+                    CommunicationInitiatorId: curruser
+                };
+                this.props.sharepointservice.addTicketNotes(tnote).then((tdata) => {
+                    console.log(`Notes updated for ticket ${ticketid} with the output ${tdata}`);
                 });
+            });
+            this.setState({
+                modalsave: false,
+                ismodalvisible: false,
+                errorMessage: false
             });
         } else {
             this.setState({
@@ -62,17 +66,14 @@ export class Itsm360AddNotes extends React.Component<IItsm360AddNotesProps, IIts
 
     public groupconversationclick = (e) => {
         this.setState({ ismodalvisible: true });
-        this.props.sharepointservice.getTicketNotes(this.props.selectedTicket.ID).then((notesdata) => {
-            this.setState({ notesdata: notesdata });
-        });
     }
 
-    public descriptionChange = (e) => {
-        this.setState({ newnote: e.currentTarget.value });
+    public descriptionChange = (value: string) => {
+        this.setState({ newnote: value });
+        return value;
     }
 
     public render(): React.ReactElement<IItsm360AddNotesProps> {
-        const { TextArea } = Input;
 
         return (
             <div className="btnattach">
@@ -89,25 +90,19 @@ export class Itsm360AddNotes extends React.Component<IItsm360AddNotesProps, IIts
                 >
                     <div>
                         {this.state.errorMessage ? <Alert type="error" style={{ marginBottom: "10px" }} closable message="No new notes added." /> : ""}
-                        <Form.Item>
-                            <TextArea rows={4} onChange={this.descriptionChange} value={this.state.newnote} />
-                        </Form.Item>
-                        <List
-                            className="comment-list"
-                            header={`${this.state.notesdata.length} replies`}
-                            itemLayout="horizontal"
-                            dataSource={this.state.notesdata}
-                            renderItem={item => (
-                                <li>
-                                    <Comment
-                                        author={item.author}
-                                        avatar={item.avatar}
-                                        content={item.content}
-                                        datetime={moment(item.datetime).fromNow()}
-                                    />
-                                </li>
-                            )}
+
+                        <Alert type="info" style={{ marginBottom: "10px" }}
+                            message="Selected Ticket IDs"
+                            description={this.props.selectedRowKeys.toString()}
                         />
+
+                        <Form layout="horizontal" labelCol={{ span: 5 }} wrapperCol={{ span: 12 }}>
+                            <Form.Item label="Notes">
+                                <div style={{border:"1px solid #d9d9d9"}}>
+                                <RichText value={this.state.newnote} onChange={this.descriptionChange} /></div>
+                            </Form.Item>
+
+                        </Form>
                     </div>
                 </Modal>
             </div>

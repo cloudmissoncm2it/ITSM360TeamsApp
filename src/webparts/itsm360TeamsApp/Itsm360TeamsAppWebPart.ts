@@ -9,7 +9,8 @@ import {
 
 import * as strings from 'Itsm360TeamsAppWebPartStrings';
 import {Itsm360TeamsApp} from './components/Itsm360TeamsApp';
-import { IItsm360TeamsAppProps } from './components/Itsm360TeamsApp';
+import {Itsm360TeamsConfigure} from './components/Itsm360TeamsConfigure';
+import { IItsm360TeamsConfigureProps } from './components/Itsm360TeamsConfigure';
 import * as microsoftTeams from '@microsoft/teams-js';
 
 export interface IItsm360TeamsAppWebPartProps {
@@ -34,12 +35,9 @@ export default class Itsm360TeamsAppWebPart extends BaseClientSideWebPart<IItsm3
   }
 
   public render(): void {
-    const element: React.ReactElement<IItsm360TeamsAppProps > = React.createElement(
-      Itsm360TeamsApp,
+    const element: React.ReactElement<IItsm360TeamsConfigureProps > = React.createElement(
+      Itsm360TeamsConfigure,
       {
-        description: this.properties.description,
-        sphttpclient:null,
-        currentuser:null,
         context:this.context,
         teamscontext:this._teamsContext
       }

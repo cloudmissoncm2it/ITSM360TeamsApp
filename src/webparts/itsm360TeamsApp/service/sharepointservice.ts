@@ -14,22 +14,27 @@ import { IServiceCategory } from "../model/IServiceCategory";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { ICI } from "../model/ICI";
 import { IAsset } from "../model/IAsset";
+import { sp} from "@pnp/sp/presets/all";
+import { ITask } from "../model/ITask";
 
 export class sharepointservice{
     private _spclient:SPHttpClient;
     private _teamscontext:microsoftTeams.Context;
     private _httpclient:HttpClient;
-    private _weburl="https://cloudmission.sharepoint.com/sites/ITSM360Trial/";
-    private _ticketsid="ae3bf971-67ad-407e-870a-71a5f6bb27f8";
-    private _teamsid="023d0962-ec23-4596-a212-af1afd6781dc";
-    private _prioritesid="4b32c8d6-f2b0-43ba-a24b-76fe4535c328";
-    private _statusid="69c202e2-f6a7-4ce0-96b6-67d5527f037c";
-    private _servicegroupid="c3619f14-b00c-46d0-a3fa-9d373a9bd60e";
-    private _servicesid="ea98ea2b-5179-4c18-982b-d1142ca3550f";
-    private _subcategory="5cd9db0b-3549-41d9-adb9-a1f28c94a6a2";
-    private _conversationid="3471b6ec-1c99-4930-97ed-20da4b63ab19";
-    private _CIid="eabf87f1-3197-48fd-a808-c8de444a356f";
-    private _assetsid="03c1b9b3-551d-449b-a379-66be5a6f3988";
+    public _weburl;
+    private _ticketsid;
+    private _teamsid;
+    private _prioritesid;
+    private _statusid;
+    private _servicegroupid;
+    private _servicesid;
+    private _subcategory;
+    private _conversationid;
+    private _CIid;
+    private _assetsid;
+    private _ticketnotesid;
+    private _tickettasksid="f0b6bde3-e5ff-415e-be1e-35c888f27f00";
+    private _taskCatalog="2cbc3620-691f-4da5-ae60-8f17f9cbdb69";
     private _spris:ISLAPriority[]=[];
     private _stats:Istatus[]=[];
     private _sconts:IContype[]=[];
@@ -43,10 +48,127 @@ export class sharepointservice{
         this._currentuser=context.pageContext.user;
         this._teamscontext=teamscontext;
         this._httpclient=context.httpClient;
-        this.getUsers(null);
-        this.getCIsLookUp().then((data)=>{
-            this._CIs=data;
+    }
+
+    public getStorageEntity():Promise<any>{
+        return sp.web.getStorageEntity("itsmconfig").then((res)=>{
+            if(typeof res.Value!="undefined"){
+                const configdata=JSON.parse(res.Value);
+                this._ticketsid=configdata.ticketid;
+                this._weburl=configdata.siteurl;
+                this._statusid=configdata.statusid;
+                this._teamsid=configdata.teamsid;
+                this._prioritesid=configdata.prioritesid;
+                this._servicegroupid=configdata.servicegroupid;
+                this._servicesid=configdata.servicesid;
+                this._subcategory=configdata.subcategory;
+                this._conversationid=configdata.conversationid;
+                this._CIid=configdata.CIid;
+                this._assetsid=configdata.assetsid;
+                this._ticketnotesid=configdata.ticketnotesid;
+                this.getUsers(null);
+                this.getCIsLookUp().then((data)=>{
+                    this._CIs=data;
+                });
+                return Promise.resolve("Success");
+            }else{
+                return Promise.reject("Error! No Storage entity found");
+            }
         });
+    }
+
+    public setStorageEntity(configdata:any):Promise<any>{
+        const cdata=JSON.stringify(configdata);
+        sp.getTenantAppCatalogWeb().then((catweb)=>{
+            catweb.setStorageEntity("itsmconfig",cdata);
+        });
+
+        return Promise.resolve("Success");
+    }
+
+    public getSiteLists(url:string):Promise<any>{
+        const querygetAllLsts = `${url}/_api/web/Lists?$select=Title,Id,RootFolder/Name&$filter=Hidden eq false and BaseTemplate eq 100&$expand=RootFolder`;
+        this._weburl=url;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(querygetAllLsts, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                data.value.forEach((x)=>{
+                    switch(x.RootFolder.Name){
+                        case 'Tickets':
+                            this._ticketsid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'Teams':
+                            this._teamsid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'SLAPriorities':
+                            this._prioritesid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'TicketStatus':
+                            this._statusid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'ServiceGroups':
+                            this._servicegroupid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'Services':
+                            this._servicesid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'ServiceCategories':
+                            this._subcategory=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'TicketCommunications':
+                            this._conversationid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'CIs':
+                            this._CIid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'Assets':
+                            this._assetsid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        case 'TicketNotes':
+                            this._ticketnotesid=x.Id;console.log(x.Id,x.Title);
+                            break;
+                        default:
+                            console.log(x.RootFolder.Name);
+                            break;
+                    }
+                });
+
+                const configdata={
+                    siteurl: url,
+                    ticketid: this._ticketsid,
+                    statusid: this._statusid,
+                    teamsid: this._teamsid,
+                    prioritesid:this._prioritesid,
+                    servicegroupid:this._servicegroupid,
+                    servicesid:this._servicesid,
+                    subcategory:this._subcategory,
+                    conversationid:this._conversationid,
+                    CIid:this._CIid,
+                    assetsid:this._assetsid,
+                    ticketnotesid:this._ticketnotesid
+                };
+                this.setStorageEntity(configdata);
+                this.getUsers(null);
+                this.getCIsLookUp().then((cidata)=>{
+                    this._CIs=cidata;
+                });
+                return Promise.resolve("success");
+            }).catch((ex) => {
+                console.log("Error while fetching User Details: ", ex);
+                throw ex;
+            });
     }
 
     public getITSMTickets(nexturl?:string,prevtickets?:ITicketItem[],cview?:string):Promise<any>{
@@ -732,7 +854,7 @@ export class sharepointservice{
             });
     }
 
-    public updateTicketAssign(ticketid:string,assignid:string):Promise<any>{
+    public updateTicketAssign(ticketid:string,updateobj:any):Promise<any>{
         const updateurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})`;
         const getetagurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?$select=Id`;
         let etag: string = undefined;
@@ -744,9 +866,7 @@ export class sharepointservice{
           }).then((response:SPHttpClientResponse)=>{
             etag=response.headers.get("ETag");
             return response.json().then((rdata)=>{
-                const body:string=JSON.stringify({
-                    'AssignedPersonId': assignid
-                  });
+                const body:string=JSON.stringify(updateobj);
                  const data:ISPHttpClientBatchOptions={
                     headers:{
                         "Accept":"application/json",
@@ -857,7 +977,7 @@ export class sharepointservice{
     }
 
     public getTicketDetails(ticketid:String):Promise<any>{
-        const selectquery:string="$select=Description,RequestSummary,Urgency,Impact,ServiceGroups/Title,ServiceGroups/ID,RelatedServices/Title,RelatedServices/ID,RelatedCategories/Title,RelatedCategories/ID,RelatedCIs/Title,RelatedCIs/ID,RelatedAssets/ID";
+        const selectquery:string="$select=Description,RequestSummary,Urgency,Impact,ServiceGroups/Title,ServiceGroups/ID,RelatedServices/Title,RelatedServices/ID,RelatedCategories/Title,RelatedCategories/ID,RelatedCIs/Title,RelatedCIs/ID,RelatedAssets/ID,NotificationSummary";
         const expandquery:string="$expand=ServiceGroups,RelatedServices,RelatedCategories,RelatedCIs,RelatedAssets";
         //const filterquery:string=`$filter=ID eq ${ticketid}`
         const querygetAllItems = `${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?${selectquery}&${expandquery}`;
@@ -876,7 +996,7 @@ export class sharepointservice{
                 else { return Promise.reject(new Error(JSON.stringify(response))); }
             })
             .then((data: any) => {
-                console.log(data.d);
+                console.log("ticket details ",data.d);
                return data.d;
                
             }).catch((ex) => {
@@ -1061,4 +1181,147 @@ export class sharepointservice{
                 throw ex;
             });
     }
+
+    public AddTicketInternalNotes(ticketnote:any):Promise<any>{
+        const addnotesurl:string=`${this._weburl}_api/web/lists(guid'${this._ticketnotesid}')/items`;
+        const httpclientoptions:ISPHttpClientOptions={
+            headers:{
+                "Accept":"application/json;odata=verbose",
+                "Content-Type":"application/json;odata=verbose",
+                "odata-version": ""
+            },
+            body:JSON.stringify(ticketnote)
+        };
+
+        return this._spclient.post(addnotesurl, SPHttpClient.configurations.v1, httpclientoptions)
+            .then((response: SPHttpClientResponse) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.status;
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            });
+    }
+
+    public getSubTasks(ticketid:string):Promise<any>{
+        const tskurl=`${this._weburl}_api/web/lists(guid'${this._tickettasksid}')/items?$select=ID,Title,AssignedPerson/Title,AssignedPerson/EMail,AssignedTeam/Title,AssignedTeam/Id,StartDate,DueDate,PercentComplete,TaskStatus,Description&$expand=AssignedPerson,AssignedTeam&$filter=RelatedTicketsId eq ${ticketid}`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(tskurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let tsks:ITask[]=[];
+                data.value.forEach(ltsk => {
+                   const tsk:ITask={
+                    key:ltsk.ID,   
+                    Title:ltsk.Title,
+                    StartDate:ltsk.StartDate,
+                    DueDate:ltsk.DueDate,
+                    PercentComplete:ltsk.PercentComplete,
+                    TaskStatus:ltsk.TaskStatus,
+                    Description:ltsk.Description,
+                    AssignedTeam:typeof ltsk.AssignedTeam!= 'undefined'?{Title:ltsk.AssignedTeam.Title,ID:ltsk.AssignedTeam.Id}:null,
+                    AssignedPerson:typeof ltsk.AssignedPerson!= 'undefined'?{Title:ltsk.AssignedPerson.Title,ID:ltsk.AssignedPerson.EMail}:null
+                   };
+                   tsks.push(tsk);
+                });
+                return tsks;
+            }).catch((ex) => {
+                console.log("Error while fetching Ticket SubTasks data: ", ex);
+                throw ex;
+            });
+    }
+
+    public updateITSMSubTask(itsmtask:any,tskid:string):Promise<any>{
+        const updateurl=`${this._weburl}_api/web/lists(guid'${this._tickettasksid}')/items(${tskid})`;
+        const getetagurl=`${this._weburl}_api/web/lists(guid'${this._tickettasksid}')/items(${tskid})?$select=Id`;
+        let etag: string = undefined;
+        return this._spclient.get(getetagurl,SPHttpClient.configurations.v1,{
+            headers: {
+              'Accept': 'application/json;odata=nometadata',
+              'odata-version': ''
+            }
+          }).then((response:SPHttpClientResponse)=>{
+            etag=response.headers.get("ETag");
+            return response.json().then((rdata)=>{
+                const body:string=JSON.stringify(itsmtask);
+                 const data:ISPHttpClientBatchOptions={
+                    headers:{
+                        "Accept":"application/json;odata=verbose",
+                        "Content-Type":"application/json;odata=verbose",
+                        "odata-version": "",
+                        "IF-MATCH": etag,
+                        "X-HTTP-Method": "MERGE"
+                    },
+                    body:body
+                 };
+                 return this._spclient.post(updateurl,SPHttpClient.configurations.v1,data).then((postresponse:SPHttpClientResponse)=>{
+                    return postresponse;
+                 });
+            });
+          }).catch((ex) => {
+                console.log("Error while updating task details: ", ex);
+                throw ex;
+            });
+    }
+
+    public addITSMSubTask(itsmtask:any):Promise<any>{
+        const addtaskurl:string=`${this._weburl}_api/web/lists(guid'${this._tickettasksid}')/items`;
+        const httpclientoptions:ISPHttpClientOptions={
+            body:JSON.stringify(itsmtask)
+        };
+
+        return this._spclient.post(addtaskurl, SPHttpClient.configurations.v1, httpclientoptions)
+            .then((response: SPHttpClientResponse) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.status;
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            });
+    }
+
+    public getTaskCatalog():Promise<any>{
+        const catalogurl=`${this._weburl}_api/web/lists(guid'${this._taskCatalog}')/items?$select=ID,Title,AssignedPerson/Title,AssignedPerson/EMail,AssignedTeam/Title,AssignedTeam/Id,Description&$expand=AssignedPerson,AssignedTeam`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(catalogurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let tsks:ITask[]=[];
+                data.value.forEach(ltsk => {
+                   const tsk:ITask={
+                    key:ltsk.ID,   
+                    Title:ltsk.Title,
+                    Description:ltsk.Description,
+                    AssignedTeam:typeof ltsk.AssignedTeam!= 'undefined'?{Title:ltsk.AssignedTeam.Title,ID:ltsk.AssignedTeam.Id}:null,
+                    AssignedPerson:typeof ltsk.AssignedPerson!= 'undefined'?{Title:ltsk.AssignedPerson.Title,ID:ltsk.AssignedPerson.EMail}:null
+                   };
+                   tsks.push(tsk);
+                });
+                return tsks;
+            }).catch((ex) => {
+                console.log("Error while fetching Ticket SubTasks data: ", ex);
+                throw ex;
+            });
+    }
+
 }

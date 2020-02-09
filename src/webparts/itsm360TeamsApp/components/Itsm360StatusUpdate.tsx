@@ -1,26 +1,27 @@
 import * as React from 'react';
-import { Modal,Alert,Button,Icon } from 'antd';
+import { Modal, Alert, Button, Icon, Form } from 'antd';
 import { sharepointservice } from '../service/sharepointservice';
 import { ITicketItem } from '../model/ITicketItem';
 import { Istatus } from '../model/Istatus';
 
-export interface IItsm360StatusUpdateProps{
-    visible:boolean;
-    sharepointservice:sharepointservice;
-    selectedTicket:ITicketItem;
-    status:Istatus[];
+export interface IItsm360StatusUpdateProps {
+    visible: boolean;
+    sharepointservice: sharepointservice;
+    selectedTicket?: ITicketItem;
+    selectedRowKeys?: string[];
+    status: Istatus[];
 }
 
-export interface IItsm360StatusUpdateState{
-    ismodalvisible:boolean;
-    modalsave?:boolean;
-    statusid?:string;
-    errorMessage?:boolean;
+export interface IItsm360StatusUpdateState {
+    ismodalvisible: boolean;
+    modalsave?: boolean;
+    statusid?: string;
+    errorMessage?: boolean;
 }
 
-export class Itsm360StatusUpdate extends React.Component<IItsm360StatusUpdateProps,IItsm360StatusUpdateState>{
+export class Itsm360StatusUpdate extends React.Component<IItsm360StatusUpdateProps, IItsm360StatusUpdateState>{
 
-    constructor(props:IItsm360StatusUpdateProps){
+    constructor(props: IItsm360StatusUpdateProps) {
         super(props);
         this.state = {
             ismodalvisible: this.props.visible,
@@ -28,82 +29,66 @@ export class Itsm360StatusUpdate extends React.Component<IItsm360StatusUpdatePro
         };
     }
 
-    public handleOk=(e)=>{
-        const {statusid}=this.state;
-        this.setState({modalsave:true});
-        if(typeof statusid !="undefined"){
-            this.props.sharepointservice.updateTicketStatus(this.props.selectedTicket.ID,this.state.statusid).then((resp)=>{
-                console.log("update status: ",resp);
-                this.setState({
-                    modalsave:false,
-                    ismodalvisible:false
+    public handleOk = (e) => {
+        const { statusid } = this.state;
+        this.setState({ modalsave: true });
+        if (typeof statusid != "undefined" && statusid != "") {
+            this.props.selectedRowKeys.forEach((ticketid) => {
+                this.props.sharepointservice.updateTicketStatus(ticketid, this.state.statusid).then((resp) => {
+                    console.log(`update status for ticketid ${ticketid} is ${resp}`);
                 });
             });
-        }else{
             this.setState({
-                modalsave:false,
-                errorMessage:true
+                modalsave: false,
+                ismodalvisible: false
+            });
+        } else {
+            this.setState({
+                modalsave: false,
+                errorMessage: true
             });
         }
     }
 
-    public handleCancel=(e)=>{
-        this.setState({ismodalvisible:false});
+    public handleCancel = (e) => {
+        this.setState({ ismodalvisible: false });
     }
 
     public statusChange = (e) => {
-        this.setState({statusid:e.target.value});
-      }
+        this.setState({ statusid: e.target.value });
+    }
 
-    public render():React.ReactElement<IItsm360StatusUpdateProps>{
-        const stats:Istatus[]=this.props.status;
-        const ticketdesc=this.props.selectedTicket?this.props.selectedTicket.Title:"";
-        const ticketid=this.props.selectedTicket?this.props.selectedTicket.ID:"";
-        const selectedstatus=this.props.selectedTicket?this.props.selectedTicket.Status:"";
-
+    public render(): React.ReactElement<IItsm360StatusUpdateProps> {
+        const stats: Istatus[] = this.props.status;
         return (
             <div className="btnattach">
-                <Button disabled={!this.props.visible} onClick={()=> this.setState({ismodalvisible:true})}>
+                <Button disabled={!this.props.visible} onClick={() => this.setState({ ismodalvisible: true })}>
                     <Icon type="reload" />
                     Update Status
                 </Button>
                 <Modal title="Update Status"
-                   visible={this.state.ismodalvisible}
-                   onOk={this.handleOk}
-                   onCancel={this.handleCancel}
-                   okText="Update Status"
-                   confirmLoading={this.state.modalsave} 
+                    visible={this.state.ismodalvisible}
+                    onOk={this.handleOk}
+                    onCancel={this.handleCancel}
+                    okText="Update Status"
+                    confirmLoading={this.state.modalsave}
                 >
                     <div>
-                    {this.state.errorMessage?<Alert type="error" style={{marginBottom:"10px"}} closable message="No change in the status"/>:""} 
-                        <Alert type="info" style={{marginBottom:"10px"}} 
-                            message={`Title: ${ticketdesc}`}
-                            description={`Ticket Id: ${ticketid}`}
+                        {this.state.errorMessage ? <Alert type="error" style={{ marginBottom: "10px" }} closable message="No Status selected. Select a status before updating" /> : ""}
+                        <Alert type="info" style={{ marginBottom: "10px" }}
+                            message="Selected Ticket IDs"
+                            description={this.props.selectedRowKeys.toString()}
                         />
-                        <Alert type="info" showIcon style={{marginBottom:"10px"}}
-                            message={`Present Value: ${selectedstatus}`}
-                        />
-                        <div className="ant-form ant-form-horizontal">
-                        <div className="ant-row ant-form-item" >
-                    <div className="ant-col ant-form-item-label ant-col-xs-24 ant-col-sm-8">
-                      <label>Status</label>
-                    </div>
-                    <div className="ant-col ant-form-item-control-wrapper ant-col-xs-24 ant-col-sm-16">
-                      <div className="ant-form-item-control">
-                        <span className="ant-form-item-children">
-                        <select onChange={this.statusChange}>
-                        {stats.map((stat:Istatus,index)=>{
-                          if(stat.Title==selectedstatus){
-                            return <option value={stat.ID} key={index} selected>{stat.Title}</option>;
-                          }else{  
-                            return <option value={stat.ID} key={index}>{stat.Title}</option>;}
-                        })}
-                        </select>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                        </div>
+                        <Form layout="horizontal" labelCol={{ span: 5 }} wrapperCol={{ span: 12 }}>
+                            <Form.Item label="Status">
+                                <select onChange={this.statusChange} className="ant-select-selection ant-select-selection--single">
+                                    <option value="">-Select a Status</option>
+                                    {stats.map((stat: Istatus, index) => {
+                                        return <option value={stat.ID} key={index}>{stat.Title}</option>;
+                                    })}
+                                </select>
+                            </Form.Item>
+                        </Form>
                     </div>
                 </Modal>
             </div>
