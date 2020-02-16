@@ -14,7 +14,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { ITeam } from '../model/ITeam';
 import { Itsm360StatusUpdate } from './Itsm360StatusUpdate';
 import { Itsm360Assign } from './Itsm360Assign';
-import { Itsm360Attachment } from './Itsm360Attachment';
+import { Itsm360KBArticle } from './Itsm360KBArticle';
 import { Itsm360AddNotes } from './Itsm360AddNotes';
 import { Itsm360EditTicket } from './Itsm360EditTicket';
 
@@ -299,7 +299,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
       {
         title: 'Title',
         dataIndex: 'Title',
-        render: (title, record) => <div><Itsm360EditTicket sharepointservice={this.props.spservice} selectedTicket={record} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} tictitle={title} /></div>,
+        render: (title, record) => <div><Itsm360EditTicket sharepointservice={this.props.spservice} selectedTicket={record} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} tictitle={title} refreshticketsdata={this.refreshticketsdata} /></div>,
         ...this.getColumnSearchProps('Title'),
         width: '15%'
       },
@@ -388,6 +388,7 @@ export class Itsm360TeamsApp extends React.Component<IItsm360TeamsAppProps, IIts
                       <Itsm360StatusUpdate visible={hasSelected} sharepointservice={this.props.spservice} selectedRowKeys={this.state.selectedRowKeys} status={this.state.statuses} />
                       <Itsm360Assign visible={hasSelected} sharepointservice={this.props.spservice} selectedRowKeys={this.state.selectedRowKeys}  ppcontext={this.props.context} teams={this.state.teams} />
                       {/* <Itsm360Attachment visible={hasSelected} sharepointservice={this.props.spservice} selectedTicket={this.state.selectedTicket} /> */}
+                      <Itsm360KBArticle visible={selectedRowKeys.length==1} sharepointservice={this.props.spservice} selectedrowkeys={selectedRowKeys} />
                       <Itsm360AddNotes sharepointservice={this.props.spservice} visible={hasSelected} selectedRowKeys={this.state.selectedRowKeys} />
                       <Itsm360newticket sharepointservice={this.props.spservice} ppcontext={this.props.context} teams={this.state.teams} status={this.state.statuses} refreshticketsdata={this.refreshticketsdata} />
                     </div>

@@ -11,6 +11,8 @@ import { IUserDetails } from '../model/IUserDetails';
 import {Itsm360Classification} from './Itsm360Classification';
 import {Itsm360InternalNotes} from './Itsm360InternalNotes';
 import {Itsm360SubTasks}from './Itsm360SubTasks';
+import {Itsm360Conversation} from './Itsm360Conversation';
+import { RichText } from "@pnp/spfx-controls-react/lib/RichText";
 const { TabPane } = Tabs;
 const { Option } = Select;
 const { TextArea } = Input;
@@ -23,6 +25,7 @@ export interface IItsm360EditTicketProps {
     status?: Istatus[];
     ppcontext: WebPartContext;
     tictitle: string;
+    refreshticketsdata?:any;
 }
 
 export interface IItsm360EditTicketState {
@@ -57,6 +60,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
     private _sgtitle:string;
     private _setitle:string;
     private _scategorytitle:string;
+    private _count=0;
 
     constructor(props: IItsm360EditTicketProps) {
         super(props);
@@ -88,28 +92,24 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
     }
 
     public editTicketClick = (e) => {
-        debugger;
         this.setState({ isdrawervisible: true });
         const { Status, ID } = this.props.selectedTicket;
         const spservice = this.props.sharepointservice;
         if (Status.indexOf("Closed") > -1) {
             this.setState({ isStatusClosed: true });
         }
-        spservice.getTicketNotes(ID).then((notesdata) => {
-            this.setState({ notesdata: notesdata });
-        });
         spservice.getTicketAttachment(ID).then((ticketattach) => {
             this.setState({ ticketattachments: ticketattach });
         });
 
         spservice.getTicketDetails(ID).then((ticketdata) => {
+            ++this._count;
             this.setState({
                 ticketdescription: ticketdata.Description,
                 ticketurgency: ticketdata.Urgency,
                 ticketimpact: ticketdata.Impact,
                 notificationsummary:ticketdata.NotificationSummary
             });
-            debugger;
             this._sgtitle=ticketdata.ServiceGroups.Title;
             this._setitle=ticketdata.RelatedServices.Title;
             this._scategorytitle=ticketdata.RelatedCategories.Title;
@@ -183,7 +183,8 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
     }
 
     public descriptionChange = (e) => {
-        this.setState({ ticketdescription: e.currentTarget.value });
+        this.setState({ ticketdescription: e });
+        return e;
     }
 
     public titleChange = (e) => {
@@ -271,7 +272,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
         };
         console.log("update obj",updateticket);
         this.props.sharepointservice.updateTicketDetails(updateticket, this.props.selectedTicket.ID).then((data) => {
-            console.log(data);
+            this.props.refreshticketsdata(undefined);
             this.setState({ isdrawervisible: false, loading: false });
         }).catch((ex) => {
             console.log("From ticket update componenet: Error while updating ticket details; ", ex);
@@ -400,7 +401,9 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                                                     resolveDelay={200} />
                                             </Form.Item>
                                             <Form.Item label="Description">
-                                                <TextArea rows={3} style={{ width: "60%" }} onChange={this.descriptionChange} value={this.state.ticketdescription} />
+                                                {/* <TextArea rows={3} style={{ width: "60%" }} onChange={this.descriptionChange} value={this.state.ticketdescription} /> */}
+                                                <div style={{ border: "1px solid #d9d9d9",maxHeight:"150px",overflow:"auto",width:"80%"}} key={this._count}>
+                                                    <RichText isEditMode={true} value={this.state.ticketdescription} onChange={this.descriptionChange} />   </div>
                                             </Form.Item>
                                             <Form.Item label="Attachments">
                                                 <List
@@ -420,28 +423,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                                             <Itsm360InternalNotes sharepointservice={this.props.sharepointservice} selectedTicket={this.props.selectedTicket} getinternalnotevalues={this.getinternalnotevalues} ppcontext={this.props.ppcontext} />
                                         </TabPane>
                                         <TabPane tab="Conversation" key="4">
-                                            <Form.Item>
-                                                <TextArea placeholder="Post a message" rows={3} style={{ width: "60%" }} onChange={this.internalnoteChange} value={this.state.newnote} />
-                                                <div style={{ marginLeft: "50%" }}>
-                                                    <Button type="primary" icon="message" size="small" onClick={this.postinternalnotes}>Post</Button>
-                                                </div>
-                                            </Form.Item>
-                                            <List
-                                                className="comment-list"
-                                                header={`${this.state.notesdata.length} replies`}
-                                                itemLayout="horizontal"
-                                                dataSource={this.state.notesdata}
-                                                renderItem={item => (
-                                                    <li>
-                                                        <Comment
-                                                            author={item.author}
-                                                            avatar={item.avatar}
-                                                            content={item.content}
-                                                            datetime={moment(item.datetime).fromNow()}
-                                                        />
-                                                    </li>
-                                                )}
-                                            />
+                                                <Itsm360Conversation spservice={this.props.sharepointservice} classificationvals={this.state.classificationvalues} selectedTicket={this.props.selectedTicket} />
                                         </TabPane>
                                         <TabPane tab="Resolve" key="5">
                                             <Form layout="vertical">
@@ -457,16 +439,6 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
 
                             </Col>
                             <Col span={12}>
-                             {/* <Descriptions bordered style={{marginLeft:"1%"}} size="small">
-                                 <Descriptions.Item label="Subject" span={2}>{this.state.tickettitle}</Descriptions.Item>
-                                 <Descriptions.Item label="Status">{ss[0].Title}</Descriptions.Item>
-                                 <Descriptions.Item label="Requestor" span={3}>{Requester}</Descriptions.Item>
-                                 <Descriptions.Item label="Description" span={3}>{this.state.ticketdescription?this.state.ticketdescription.replace(/<[^>]*>?/gm, ''):null}</Descriptions.Item>
-                                 <Descriptions.Item label="Service Group" span={3}>{this._sgtitle}</Descriptions.Item>
-                                 <Descriptions.Item label="Service">{this._setitle}</Descriptions.Item>
-                                 <Descriptions.Item label="Category">{this._scategorytitle}</Descriptions.Item>
-                             </Descriptions> */}
-                                
                               <div dangerouslySetInnerHTML={{__html: this.state.notificationsummary}} />
                              <Divider orientation="left">Order Details</Divider>
                                             

@@ -140,7 +140,7 @@ export class Itsm360InternalNotes extends React.Component<IItsm360InternalNotesP
                             <Comment
                                 author={item.author}
                                 avatar={item.avatar}
-                                content={item.content}
+                                content={<div dangerouslySetInnerHTML={{__html: item.content}} />}
                                 datetime={moment(item.datetime).fromNow()}
                             />
                         </li>

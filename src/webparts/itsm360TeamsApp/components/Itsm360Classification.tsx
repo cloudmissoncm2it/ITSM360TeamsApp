@@ -204,8 +204,7 @@ export class Itsm360Classification extends React.Component<IItsm360Classificatio
                                  <Descriptions.Item label="Service Group" span={3}>{this._sgtitle}</Descriptions.Item>
                                  <Descriptions.Item label="Service" span={3}>{this._setitle}</Descriptions.Item>
                                  <Descriptions.Item label="Category" span={3}>{this._scategorytitle}</Descriptions.Item>
-                                 <Descriptions.Item label="RelatedCI" span={3}>{this._relatedCi}</Descriptions.Item>
-                                 
+                                 <Descriptions.Item label="RelatedCI" span={3}>{this._relatedCi}</Descriptions.Item>         
                     </Descriptions>
                     </Col>
                 </Row>

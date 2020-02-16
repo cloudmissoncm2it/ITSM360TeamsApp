@@ -35,6 +35,10 @@ export class sharepointservice{
     private _ticketnotesid;
     private _tickettasksid="f0b6bde3-e5ff-415e-be1e-35c888f27f00";
     private _taskCatalog="2cbc3620-691f-4da5-ae60-8f17f9cbdb69";
+    private _languageid="0a0fb546-cb9b-4864-a1c0-690ce27d5ff6";
+    private _KBArtcileid="c676b182-0f57-4cac-9475-6c7e41e53632";
+    private _standMessage="ab2e4c11-0ba1-4332-8b26-27b20245f16d";
+    private _doclibraryid="2926729c-fd33-474a-a254-c2e79fc0a9d7";
     private _spris:ISLAPriority[]=[];
     private _stats:Istatus[]=[];
     private _sconts:IContype[]=[];
@@ -888,6 +892,7 @@ export class sharepointservice{
             });
     }
 
+    //Method for getting the Ticket communications. Shown as conversations.
     public getTicketNotes(ticketid:string):Promise<any>{
         const ticketnotesurl=`${this._weburl}_api/web/lists(guid'${this._conversationid}')/items?$filter=TicketIDId eq ${ticketid}&$select=ID,AuthorId,Communications,CommunicationInitiatorId,Created&$orderby=Id desc`;
         const options:ISPHttpClientOptions={
@@ -927,6 +932,11 @@ export class sharepointservice{
     public addTicketNotes(ticketnote:any):Promise<any>{
         const addnotesurl:string=`${this._weburl}_api/web/lists(guid'${this._conversationid}')/items`;
         const httpclientoptions:ISPHttpClientOptions={
+            headers:{
+                "Accept":"application/json;odata=verbose",
+                "Content-Type":"application/json;odata=verbose",
+                "odata-version": ""
+            },
             body:JSON.stringify(ticketnote)
         };
 
@@ -1320,6 +1330,161 @@ export class sharepointservice{
                 return tsks;
             }).catch((ex) => {
                 console.log("Error while fetching Ticket SubTasks data: ", ex);
+                throw ex;
+            });
+    }
+
+    public getLanguages():Promise<any>{
+        const langurl=`${this._weburl}_api/web/lists(guid'${this._languageid}')/items?$select=ID,Title,DefaultLanguage`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(langurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let langs:any[]=[];
+                data.value.forEach(lci => {
+                   const lang:any={
+                    Title:lci.Title,
+                    ID:lci.ID,
+                    DefaultLanguage:lci.DefaultLanguage
+                   };
+                   langs.push(lang);
+                });
+                return langs;
+            }).catch((ex) => {
+                console.log("Error while fetching language data: ", ex);
+                throw ex;
+            });
+    }
+
+    public addKBArticle(KBObj):Promise<any>{
+        const addtaskurl:string=`${this._weburl}_api/web/lists(guid'${this._KBArtcileid}')/items`;
+        const httpclientoptions:ISPHttpClientOptions={
+            headers:{
+                "Accept":"application/json;odata=verbose",
+                "Content-Type":"application/json;odata=verbose",
+                "odata-version": ""
+            },
+            body:JSON.stringify(KBObj)
+        };
+
+        return this._spclient.post(addtaskurl, SPHttpClient.configurations.v1, httpclientoptions)
+            .then((response: SPHttpClientResponse) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.status;
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            });
+    }
+
+    public getStandardMessages():Promise<any>{
+        const selectquery:string="$select=Title,Message,ID,RelatedService/Title,RelatedService/ID,RelatedCategory/Title,RelatedCategory/ID";
+        const expandquery:string="$expand=RelatedService,RelatedCategory";
+        //const filterquery:string=`$filter=ID eq ${ticketid}`
+        const querygetAllItems = `${this._weburl}_api/web/lists(guid'${this._standMessage}')/items?${selectquery}&${expandquery}`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(querygetAllItems, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let msgs:any[]=[];
+                data.value.forEach(lci => {
+                   const msg:any={
+                    Title:lci.Title,
+                    ID:lci.ID,
+                    Message:lci.Message,
+                    ServiceId:typeof lci.RelatedService !="undefined"?lci.RelatedService.ID:null,
+                    CategoryId:typeof lci.RelatedCategory !="undefined"?lci.RelatedCategory.ID:null
+                   };
+                   msgs.push(msg);
+                });
+                return msgs;
+            }).catch((ex) => {
+                console.log("Error while fetching standard messages data: ", ex);
+                throw ex;
+            });
+    }
+
+    public getKBArtciles():Promise<any>{
+        const langurl=`${this._weburl}_api/web/lists(guid'${this._KBArtcileid}')/items?$select=ID,Title`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(langurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let KBs:any[]=[];
+                data.value.forEach(lci => {
+                   const KB:any={
+                    Title:lci.Title,
+                    ID:lci.ID
+                   };
+                   KBs.push(KB);
+                });
+                return KBs;
+            }).catch((ex) => {
+                console.log("Error while fetching KBArticles data: ", ex);
+                throw ex;
+            });
+    }
+
+    public getsitedocuments():Promise<any>{
+        const docurl=`${this._weburl}_api/web/lists(guid'${this._doclibraryid}')/items?$select=ID,FileLeafRef,PublishForEndUsers&$filter=PublishForEndUsers eq 1`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(docurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let docs:any[]=[];
+                data.value.forEach(lci => {
+                   const doc:any={
+                    Title:lci.FileLeafRef,
+                    ID:lci.ID
+                   };
+                   docs.push(doc);
+                });
+                return docs;
+            }).catch((ex) => {
+                console.log("Error while fetching KBArticles data: ", ex);
                 throw ex;
             });
     }
