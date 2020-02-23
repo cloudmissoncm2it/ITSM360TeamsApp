@@ -12,6 +12,8 @@ import {Itsm360Classification} from './Itsm360Classification';
 import {Itsm360InternalNotes} from './Itsm360InternalNotes';
 import {Itsm360SubTasks}from './Itsm360SubTasks';
 import {Itsm360Conversation} from './Itsm360Conversation';
+import {Itsm360OrderDetails} from './Itsm360OrderDetails';
+import { Itsm360Emails } from './Itsm360Emails';
 import { RichText } from "@pnp/spfx-controls-react/lib/RichText";
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -36,6 +38,7 @@ export interface IItsm360EditTicketState {
     assignedperson?: any[];
     requester?: any[];
     notesdata?: any[];
+    emails?: any[];
     newnote?: string;
     isStatusClosed?: boolean;
     newat?: string;
@@ -53,6 +56,7 @@ export interface IItsm360EditTicketState {
     classificationvalues?:any;
     internalnotesvalues?:any;
     notificationsummary?:any;
+    orderdetails?:any[];
 }
 
 export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, IItsm360EditTicketState>{
@@ -69,13 +73,15 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
             modalsave: false,
             iserror: false,
             notesdata: [],
+            emails:[],
             isStatusClosed: false,
             loading: false,
             ticketattachments: [],
             tickettitle: this.props.selectedTicket.Title,
             ticketimpact: "Low",
             ticketurgency: "Low",
-            ticketdescription:""
+            ticketdescription:"",
+            orderdetails:[]
         };
     }
 
@@ -119,7 +125,8 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
             ras.forEach((ra)=>{
                 raas.push(ra.ID);
             });
-            const x=JSON.parse(ticketdata.RequestSummary);
+            const xyz=JSON.parse(ticketdata.OrderDetails);
+            debugger;
             this.setState({
                 classificationvalues:{
                     servicegroupid:ticketdata.ServiceGroups.ID,
@@ -130,8 +137,9 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                     servicegrouptitle:this._sgtitle,
                     servicetitle:this._setitle,
                     subcategorytitle:this._scategorytitle,
-                    relatedassets:raas
-                }
+                    relatedassets:raas,
+                },
+                orderdetails:xyz
             });
         });
     }
@@ -291,6 +299,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
 
     public render(): React.ReactElement<IItsm360EditTicketProps> {
         const { Priority, Prioritycolor, Title, Status, AssignedTeam, AssignedPerson, Requester } = this.props.selectedTicket;
+        const {orderdetails}=this.state;
         //Setting the Selected status
         const ss = this.props.status.filter(i => i.Title == Status);
         const statusid = ss.length > 0 ? ss[0].ID : "Select a status";
@@ -308,7 +317,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                 <Button type="link" onClick={this.editTicketClick}>{this.props.tictitle}</Button>
                 <Drawer
                     title={`${this.props.selectedTicket.Title}, ID ${this.props.selectedTicket.ID}`}
-                    width="75%"
+                    width="80%"
                     onClose={this.handleClose}
                     visible={this.state.isdrawervisible}
                     destroyOnClose={true}
@@ -425,7 +434,10 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                                         <TabPane tab="Conversation" key="4">
                                                 <Itsm360Conversation spservice={this.props.sharepointservice} classificationvals={this.state.classificationvalues} selectedTicket={this.props.selectedTicket} />
                                         </TabPane>
-                                        <TabPane tab="Resolve" key="5">
+                                        <TabPane tab="Emails" key="5">
+                                            <Itsm360Emails sharepointservice={this.props.sharepointservice} selectedTicket={this.props.selectedTicket}></Itsm360Emails>
+                                        </TabPane>
+                                        <TabPane tab="Resolve" key="6">
                                             <Form layout="vertical">
                                                 <Form.Item label="Closing Remarks">
                                                     <TextArea placeholder="Make a note" rows={3} style={{ width: "60%" }} disabled={!this.state.isStatusClosed} onChange={this.closingcommentsChange} value={this.state.closingComments} />
@@ -441,7 +453,7 @@ export class Itsm360EditTicket extends React.Component<IItsm360EditTicketProps, 
                             <Col span={12}>
                               <div dangerouslySetInnerHTML={{__html: this.state.notificationsummary}} />
                              <Divider orientation="left">Order Details</Divider>
-                                            
+                               {orderdetails!=null && orderdetails.length>0?<Itsm360OrderDetails spservice={this.props.sharepointservice} orderdetails={orderdetails} />:""}             
                             </Col>
                         </Row>
                     </div>

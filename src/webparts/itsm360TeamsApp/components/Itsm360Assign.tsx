@@ -120,7 +120,7 @@ export class Itsm360Assign extends React.Component<IItsm360AssignProps, IItsm360
     }
 
     public addclick=(e)=>{
-        debugger;
+
         if(e.key=="AM"){
         const Currentusers: IUserDetails[] = this.props.sharepointservice._lusers.filter(i => i.Email == this.props.sharepointservice._currentuser.email);
         const curruser: IUserDetails = Currentusers.length > 0 ? Currentusers[0] : null;
