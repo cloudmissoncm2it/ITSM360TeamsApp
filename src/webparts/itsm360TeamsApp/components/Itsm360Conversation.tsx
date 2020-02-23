@@ -135,19 +135,19 @@ export class Itsm360Conversation extends React.Component<IItsm360ConversationPro
                     </Col>
                 </Row>
                 <Row align="middle" type="flex" justify="space-between" style={{marginTop:"10px"}}>
-                    <Col span="20">
+                    <Col span="24">
                         <div style={{ border: "1px solid #d9d9d9",maxHeight:"150px",overflow:"auto"}} key={this._count}>
                          <RichText isEditMode={true} value={newconversation} onChange={this.conchange} />   </div>
                     </Col>
                 </Row>
                 <Row align="middle" type="flex" justify="space-between" style={{marginTop:"10px"}}>
                 <Col span="12">
-                        <Select mode="multiple" style={{width:"90%"}} value={selectedKBs} onChange={(val:any)=>{this.setState({selectedKBs:val});}}>
+                        <Select mode="multiple" style={{width:"90%"}} value={selectedKBs} onChange={(val:any)=>{this.setState({selectedKBs:val});}} placeholder="Select KB articles">
                         {KBArticles.map((KBart:any, index) => <Option value={KBart.ID} key={index}>{KBart.Title}</Option>)} 
                         </Select>
                     </Col>
                     <Col span="12">
-                        <Select mode="multiple" style={{width:"90%"}} value={selectedDocs} onChange={(val:any)=>{this.setState({selectedDocs:val});}}>
+                        <Select mode="multiple" style={{width:"90%"}} value={selectedDocs} onChange={(val:any)=>{this.setState({selectedDocs:val});}} placeholder="Select documents">
                             {docs.map((doc:any, index) => <Option value={doc.ID} key={index}>{doc.Title}</Option>)}
                         </Select>
                     </Col> 

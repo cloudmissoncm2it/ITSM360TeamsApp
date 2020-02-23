@@ -81,6 +81,15 @@
   background-color:gainsboro;
 }
 
+.newEmailLabel {
+  display: inline-block;
+  padding: 6px 20px 6px 20px;
+  background-color: #f4f4f4;
+  font-weight: bold;
+  font-size:12px;
+  color:#333;
+}
+
   /* .card-container > .ant-tabs-card > .ant-tabs-content {
     height: 120px;
     margin-top: -16px;

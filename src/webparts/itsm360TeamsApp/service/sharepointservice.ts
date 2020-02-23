@@ -30,6 +30,7 @@ export class sharepointservice{
     private _servicesid;
     private _subcategory;
     private _conversationid;
+    private _emailsid="d6004eaf-11a3-429c-b6a4-5b76677ea7c5";
     private _CIid;
     private _assetsid;
     private _ticketnotesid;
@@ -949,6 +950,77 @@ export class sharepointservice{
             });
     }
 
+    public getTicketRequesterAndSenderEmails(ticketid:string):Promise<any>{
+        const ticketsurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items?$filter=ID eq ${ticketid}&$select=Requester/ID,Sender&$expand=Requester`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(ticketsurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let requesterUser = (data.value.length > 0 && data.value[0].Requester != null && data.value[0].Requester != undefined) ? this._lusers.filter(i=>i.ID==data.value[0].Requester.ID) : null;
+                let requesterEmail = (requesterUser != null && requesterUser.length > 0) ? requesterUser[0].Email : "";
+                let senderEmail = (data.value.length > 0 && data.value[0].Sender != null && data.value[0].Sender != undefined) ? data.value[0].Sender : "";
+                return { "Requester": requesterEmail, "Sender": senderEmail };
+            }).catch((ex) => {
+                console.log("Error while fetching current ticket Requester: ", ex);
+                throw ex;
+            });
+    }
+
+    public getTicketEmails(ticketid:string):Promise<any>{
+        const emailsurl=`${this._weburl}_api/web/lists(guid'${this._emailsid}')/items?$filter=RelatedItem eq ${ticketid} and RelatedList eq 'Tickets'&$select=ID,Title,Email,Received,Created,Message,Cc,Read&$orderby=Id desc`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(emailsurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                let ticketEmails:any[]=[];
+                data.value.forEach(email => {
+                    email.Created = moment(email.Created).format("MMM Do YY hh:mm");
+                    ticketEmails.push(email);
+                });
+                return ticketEmails;
+            }).catch((ex) => {
+                console.log("Error while fetching Ticket Emails: ", ex);
+                throw ex;
+            });
+    }
+
+    public addTicketEmail(ticketEmail:any):Promise<any>{
+        const emailsUrl:string=`${this._weburl}_api/web/lists(guid'${this._emailsid}')/items`;
+        const httpclientoptions:ISPHttpClientOptions={
+            body:JSON.stringify(ticketEmail)
+        };
+
+        return this._spclient.post(emailsUrl, SPHttpClient.configurations.v1, httpclientoptions)
+            .then((response: SPHttpClientResponse) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.status;
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            });
+    }
+
     public getTicketInternalNotes(ticketid:string):Promise<any>{
         const ticketnotesurl=`${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})/versions/?$select=ID,Notes,VersionLabel,created,Author&$Orderby=VersionLabel desc`;
         const options:ISPHttpClientOptions={
@@ -987,7 +1059,7 @@ export class sharepointservice{
     }
 
     public getTicketDetails(ticketid:String):Promise<any>{
-        const selectquery:string="$select=Description,RequestSummary,Urgency,Impact,ServiceGroups/Title,ServiceGroups/ID,RelatedServices/Title,RelatedServices/ID,RelatedCategories/Title,RelatedCategories/ID,RelatedCIs/Title,RelatedCIs/ID,RelatedAssets/ID,NotificationSummary";
+        const selectquery:string="$select=Description,RequestSummary,Urgency,Impact,ServiceGroups/Title,ServiceGroups/ID,RelatedServices/Title,RelatedServices/ID,RelatedCategories/Title,RelatedCategories/ID,RelatedCIs/Title,RelatedCIs/ID,RelatedAssets/ID,NotificationSummary,OrderDetails";
         const expandquery:string="$expand=ServiceGroups,RelatedServices,RelatedCategories,RelatedCIs,RelatedAssets";
         //const filterquery:string=`$filter=ID eq ${ticketid}`
         const querygetAllItems = `${this._weburl}_api/web/lists(guid'${this._ticketsid}')/items(${ticketid})?${selectquery}&${expandquery}`;
@@ -1485,6 +1557,30 @@ export class sharepointservice{
                 return docs;
             }).catch((ex) => {
                 console.log("Error while fetching KBArticles data: ", ex);
+                throw ex;
+            });
+    }
+
+    public getAssetsAvailability(atitle:string):Promise<any>{
+        const aurl=`${this._weburl}_api/web/lists(guid'${this._assetsid}')/items?$select=ID,Title,LifeCycleStage/Title&$filter=Title eq '${atitle}' and LifeCycleStage/Title eq 'In stock'&$expand=LifeCycleStage`;
+        const options:ISPHttpClientOptions={
+            headers:{
+                "odata-version":"3.0",
+                "accept":"application/json;odata=nometadata"
+            },
+            method:"GET"
+        };
+        return this._spclient.get(aurl, SPHttpClient.configurations.v1,options).then(
+            (response: any) => {
+                if (response.status >= 200 && response.status < 300) {
+                    return response.json();
+                }
+                else { return Promise.reject(new Error(JSON.stringify(response))); }
+            })
+            .then((data: any) => {
+                return data.value.length;
+            }).catch((ex) => {
+                console.log("Error while fetching Assets details: ", ex);
                 throw ex;
             });
     }
