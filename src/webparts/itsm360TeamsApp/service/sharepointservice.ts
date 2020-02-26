@@ -30,16 +30,16 @@ export class sharepointservice{
     private _servicesid;
     private _subcategory;
     private _conversationid;
-    private _emailsid="d6004eaf-11a3-429c-b6a4-5b76677ea7c5";
+    private _emailsid;
     private _CIid;
     private _assetsid;
     private _ticketnotesid;
-    private _tickettasksid="f0b6bde3-e5ff-415e-be1e-35c888f27f00";
-    private _taskCatalog="2cbc3620-691f-4da5-ae60-8f17f9cbdb69";
-    private _languageid="0a0fb546-cb9b-4864-a1c0-690ce27d5ff6";
-    private _KBArtcileid="c676b182-0f57-4cac-9475-6c7e41e53632";
-    private _standMessage="ab2e4c11-0ba1-4332-8b26-27b20245f16d";
-    private _doclibraryid="2926729c-fd33-474a-a254-c2e79fc0a9d7";
+    private _tickettasksid;
+    private _taskCatalog;
+    private _languageid;
+    private _KBArtcileid;
+    private _standMessage;
+    private _doclibraryid;
     private _spris:ISLAPriority[]=[];
     private _stats:Istatus[]=[];
     private _sconts:IContype[]=[];
@@ -71,6 +71,13 @@ export class sharepointservice{
                 this._CIid=configdata.CIid;
                 this._assetsid=configdata.assetsid;
                 this._ticketnotesid=configdata.ticketnotesid;
+                this._tickettasksid=configdata.ticketsubtasks;
+                this._taskCatalog=configdata.taskcatalog;
+                this._languageid=configdata.language;
+                this._KBArtcileid=configdata.KBArticle;
+                this._standMessage=configdata.StanMessage;
+                this._doclibraryid=configdata.doclibraryid;
+                this._emailsid=configdata.emailid;
                 this.getUsers(null);
                 this.getCIsLookUp().then((data)=>{
                     this._CIs=data;
@@ -92,7 +99,7 @@ export class sharepointservice{
     }
 
     public getSiteLists(url:string):Promise<any>{
-        const querygetAllLsts = `${url}/_api/web/Lists?$select=Title,Id,RootFolder/Name&$filter=Hidden eq false and BaseTemplate eq 100&$expand=RootFolder`;
+        const querygetAllLsts = `${url}/_api/web/Lists?$select=Title,Id,RootFolder/Name&$filter=Hidden eq false &$expand=RootFolder`;
         this._weburl=url;
         const options:ISPHttpClientOptions={
             headers:{
@@ -112,40 +119,60 @@ export class sharepointservice{
                 data.value.forEach((x)=>{
                     switch(x.RootFolder.Name){
                         case 'Tickets':
-                            this._ticketsid=x.Id;console.log(x.Id,x.Title);
+                            this._ticketsid=x.Id;
                             break;
                         case 'Teams':
-                            this._teamsid=x.Id;console.log(x.Id,x.Title);
+                            this._teamsid=x.Id;
                             break;
                         case 'SLAPriorities':
-                            this._prioritesid=x.Id;console.log(x.Id,x.Title);
+                            this._prioritesid=x.Id;
                             break;
                         case 'TicketStatus':
-                            this._statusid=x.Id;console.log(x.Id,x.Title);
+                            this._statusid=x.Id;
                             break;
                         case 'ServiceGroups':
-                            this._servicegroupid=x.Id;console.log(x.Id,x.Title);
+                            this._servicegroupid=x.Id;
                             break;
                         case 'Services':
-                            this._servicesid=x.Id;console.log(x.Id,x.Title);
+                            this._servicesid=x.Id;
                             break;
                         case 'ServiceCategories':
-                            this._subcategory=x.Id;console.log(x.Id,x.Title);
+                            this._subcategory=x.Id;
                             break;
                         case 'TicketCommunications':
-                            this._conversationid=x.Id;console.log(x.Id,x.Title);
+                            this._conversationid=x.Id;
                             break;
                         case 'CIs':
-                            this._CIid=x.Id;console.log(x.Id,x.Title);
+                            this._CIid=x.Id;
                             break;
                         case 'Assets':
-                            this._assetsid=x.Id;console.log(x.Id,x.Title);
+                            this._assetsid=x.Id;
                             break;
                         case 'TicketNotes':
-                            this._ticketnotesid=x.Id;console.log(x.Id,x.Title);
+                            this._ticketnotesid=x.Id;
                             break;
+                        case 'TicketSubtasks':
+                            this._tickettasksid=x.Id;
+                            break;
+                        case 'StandardTaskCatalog':
+                            this._taskCatalog=x.Id;
+                            break;
+                        case 'Languages':
+                            this._languageid=x.Id;
+                            break;
+                        case 'KnowledgeArticles':
+                            this._KBArtcileid=x.Id;
+                            break; 
+                        case 'StandardMessages':
+                            this._standMessage=x.Id;
+                            break;
+                        case 'Documents':
+                            this._doclibraryid=x.Id;
+                            break; 
+                        case 'Emails':
+                            this._emailsid=x.Id;
+                            break;      
                         default:
-                            console.log(x.RootFolder.Name);
                             break;
                     }
                 });
@@ -162,7 +189,14 @@ export class sharepointservice{
                     conversationid:this._conversationid,
                     CIid:this._CIid,
                     assetsid:this._assetsid,
-                    ticketnotesid:this._ticketnotesid
+                    ticketnotesid:this._ticketnotesid,
+                    ticketsubtasks:this._tickettasksid,
+                    taskcatalog:this._taskCatalog,
+                    language:this._languageid,
+                    KBArticle:this._KBArtcileid,
+                    StanMessage:this._standMessage,
+                    doclibraryid:this._doclibraryid,
+                    emailid:this._emailsid
                 };
                 this.setStorageEntity(configdata);
                 this.getUsers(null);

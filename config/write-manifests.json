@@ -1,4 +1,4 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/write-manifests.schema.json",
-  "cdnBasePath": "https://cloudmission.sharepoint.com/sites/ITSM360Trial/SiteAssets/ITSM360TeamsApp"
+  "cdnBasePath": "<!-- PATH TO CDN -->"
 }

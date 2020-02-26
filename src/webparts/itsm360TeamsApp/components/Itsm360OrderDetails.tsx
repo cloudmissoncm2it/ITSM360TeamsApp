@@ -36,34 +36,34 @@ export class Itsm360OrderDetails extends React.Component<IItsm360OrderDetailsPro
                     Title:item.Title,
                     Quantity:item.Quantity,
                     Price:item.Price,
-                    Available:item.AwilableAssetsQuantity,
+                    Available:typeof item.AwilableAssetsQuantity!="undefined"?item.AwilableAssetsQuantity:0,
                     Assigned:item.AssignedAssetsQuantity
                 };
                 orderdata.push(order);
             }else{
-                let acount=item.AwilableAssetsQuantity;
-                if(typeof item.AwilableAssetsQuantity=="undefined"){
-                    spservice.getAssetsAvailability(item.Title).then((lcount)=>{
-                        debugger;
-                        if(lcount>0){
-                            let x=this.state.orders;
-                            const removeindex=x.map(y=> y.ID).indexOf(item.ID);
-                            const lo={
-                                key:item.ID,
-                                ID:item.ID,
-                                ImageUrl:x[removeindex].ImageUrl,
-                                Title:x[removeindex].Title,
-                                Quantity:x[removeindex].Quantity,
-                                Price:x[removeindex].Price,
-                                Available:lcount,
-                                Assigned:x[removeindex].Assigned
-                            };
-                            x.splice(removeindex,1);
-                            x.push(lo);
-                            this.setState({orders:x});
-                        }
-                    });
-                }
+                let acount=typeof item.AwilableAssetsQuantity!="undefined"?item.AwilableAssetsQuantity:0;
+                // if(typeof item.AwilableAssetsQuantity=="undefined"){
+                //     spservice.getAssetsAvailability(item.Title).then((lcount)=>{
+                //         debugger;
+                //         if(lcount>0){
+                //             let x=this.state.orders;
+                //             const removeindex=x.map(y=> y.ID).indexOf(item.ID);
+                //             const lo={
+                //                 key:item.ID,
+                //                 ID:item.ID,
+                //                 ImageUrl:x[removeindex].ImageUrl,
+                //                 Title:x[removeindex].Title,
+                //                 Quantity:x[removeindex].Quantity,
+                //                 Price:x[removeindex].Price,
+                //                 Available:lcount,
+                //                 Assigned:x[removeindex].Assigned
+                //             };
+                //             x.splice(removeindex,1);
+                //             x.push(lo);
+                //             this.setState({orders:x});
+                //         }
+                //     });
+                // }
                 const order={
                     key:item.ID,
                     ID:item.ID,
